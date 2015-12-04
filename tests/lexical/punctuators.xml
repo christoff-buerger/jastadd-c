@@ -1,0 +1,177 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LexicalTestSuite Description="Punctuators tests">
+<PositiveTests>
+	<LexicalTestFragment Description="Testing if all punctuators are recognized">
+		<SourceCode><![CDATA[[](){}.->
+++--&*+-~!
+/%<<>><><=>===!=^|&&||
+?:;...
+=*=/=%=+=-=<<=>>=&=^=|=
+,]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="pBRACKETOPENSQUARE">
+				<Lexem><![CDATA[[]]></Lexem>
+			</Token>
+			<Token Type="pBRACKETCLOSESQUARE">
+				<Lexem><![CDATA[]]]></Lexem>
+			</Token>
+			<Token Type="pBRACKETOPENROUND">
+				<Lexem><![CDATA[(]]></Lexem>
+			</Token>
+			<Token Type="pBRACKETCLOSEROUND">
+				<Lexem><![CDATA[)]]></Lexem>
+			</Token>
+			<Token Type="pBRACKETOPENCURLY">
+				<Lexem><![CDATA[{]]></Lexem>
+			</Token>
+			<Token Type="pBRACKETCLOSECURLY">
+				<Lexem><![CDATA[}]]></Lexem>
+			</Token>
+			<Token Type="pPOINT">
+				<Lexem><![CDATA[.]]></Lexem>
+			</Token>
+			<Token Type="pMINUS_GREATER">
+				<Lexem><![CDATA[->]]></Lexem>
+			</Token>
+			<Token Type="pPLUS_PLUS">
+				<Lexem><![CDATA[++]]></Lexem>
+			</Token>
+			<Token Type="pMINUS_MINUS">
+				<Lexem><![CDATA[--]]></Lexem>
+			</Token>
+			<Token Type="pAND">
+				<Lexem><![CDATA[&]]></Lexem>
+			</Token>
+			<Token Type="pSTAR">
+				<Lexem><![CDATA[*]]></Lexem>
+			</Token>
+			<Token Type="pPLUS">
+				<Lexem><![CDATA[+]]></Lexem>
+			</Token>
+			<Token Type="pMINUS">
+				<Lexem><![CDATA[-]]></Lexem>
+			</Token>
+			<Token Type="pTILDE">
+				<Lexem><![CDATA[~]]></Lexem>
+			</Token>
+			<Token Type="pEXCLAMATIONMARK">
+				<Lexem><![CDATA[!]]></Lexem>
+			</Token>
+			<Token Type="pSLASH">
+				<Lexem><![CDATA[/]]></Lexem>
+			</Token>
+			<Token Type="pPRECENT">
+				<Lexem><![CDATA[%]]></Lexem>
+			</Token>
+			<Token Type="pLESSER_LESSER">
+				<Lexem><![CDATA[<<]]></Lexem>
+			</Token>
+			<Token Type="pGREATER_GREATER">
+				<Lexem><![CDATA[>>]]></Lexem>
+			</Token>
+			<Token Type="pLESSER">
+				<Lexem><![CDATA[<]]></Lexem>
+			</Token>
+			<Token Type="pGREATER">
+				<Lexem><![CDATA[>]]></Lexem>
+			</Token>
+			<Token Type="pLESSER_EQUALS">
+				<Lexem><![CDATA[<=]]></Lexem>
+			</Token>
+			<Token Type="pGREATER_EQUALS">
+				<Lexem><![CDATA[>=]]></Lexem>
+			</Token>
+			<Token Type="pEQUALS_EQUALS">
+				<Lexem><![CDATA[==]]></Lexem>
+			</Token>
+			<Token Type="pEXCLAMATIONMARK_EQUALS">
+				<Lexem><![CDATA[!=]]></Lexem>
+			</Token>
+			<Token Type="pARROWUP">
+				<Lexem><![CDATA[^]]></Lexem>
+			</Token>
+			<Token Type="pLINEVERTICAL">
+				<Lexem><![CDATA[|]]></Lexem>
+			</Token>
+			<Token Type="pAND_AND">
+				<Lexem><![CDATA[&&]]></Lexem>
+			</Token>
+			<Token Type="pLINEVERTICAL_LINEVERTICAL">
+				<Lexem><![CDATA[||]]></Lexem>
+			</Token>
+			<Token Type="pQUESTIONMARK">
+				<Lexem><![CDATA[?]]></Lexem>
+			</Token>
+			<Token Type="pCOLON">
+				<Lexem><![CDATA[:]]></Lexem>
+			</Token>
+			<Token Type="pSEMICOLON">
+				<Lexem><![CDATA[;]]></Lexem>
+			</Token>
+			<Token Type="pPOINT_POINT_POINT">
+				<Lexem><![CDATA[...]]></Lexem>
+			</Token>
+			<Token Type="pEQUALS">
+				<Lexem><![CDATA[=]]></Lexem>
+			</Token>
+			<Token Type="pSTAR_EQUALS">
+				<Lexem><![CDATA[*=]]></Lexem>
+			</Token>
+			<Token Type="pSLASH_EQUALS">
+				<Lexem><![CDATA[/=]]></Lexem>
+			</Token>
+			<Token Type="pPRECENT_EQUALS">
+				<Lexem><![CDATA[%=]]></Lexem>
+			</Token>
+			<Token Type="pPLUS_EQUALS">
+				<Lexem><![CDATA[+=]]></Lexem>
+			</Token>
+			<Token Type="pMINUS_EQUALS">
+				<Lexem><![CDATA[-=]]></Lexem>
+			</Token>
+			<Token Type="pLESSER_LESSER_EQUALS">
+				<Lexem><![CDATA[<<=]]></Lexem>
+			</Token>
+			<Token Type="pGREATER_GREATER_EQUALS">
+				<Lexem><![CDATA[>>=]]></Lexem>
+			</Token>
+			<Token Type="pAND_EQUALS">
+				<Lexem><![CDATA[&=]]></Lexem>
+			</Token>
+			<Token Type="pARROWUP_EQUALS">
+				<Lexem><![CDATA[^=]]></Lexem>
+			</Token>
+			<Token Type="pLINEVERTICAL_EQUALS">
+				<Lexem><![CDATA[|=]]></Lexem>
+			</Token>
+			<Token Type="pCOMMA">
+				<Lexem><![CDATA[,]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Test for longest match rule application">
+		<SourceCode><![CDATA[....]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="pPOINT_POINT_POINT">
+				<Lexem><![CDATA[...]]></Lexem>
+			</Token>
+			<Token Type="pPOINT">
+				<Lexem><![CDATA[.]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Test that even punctuators are allowed to be broken over several lines">
+		<SourceCode><![CDATA[.\
+..]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="pPOINT_POINT_POINT">
+				<Lexem><![CDATA[...]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+</PositiveTests>
+
+<NegativeTests/>
+</LexicalTestSuite>

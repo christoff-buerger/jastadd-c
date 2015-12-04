@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LexicalTestSuite Description="Identifier tests">
+<PositiveTests>
+	<LexicalTestFragment Description="Testing basic identifier">
+		<SourceCode><![CDATA[_
+id
+_id
+_id_
+__id
+__id__
+id__
+id_
+_3id
+id3_
+
+id_id
+id_3id
+id3_id
+
+i3d
+id3]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[_]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[id]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[_id]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[_id_]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[__id]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[__id__]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[id__]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[id_]]></Lexem>
+			</Token>
+			
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[_3id]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[id3_]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[id_id]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[id_3id]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[id3_id]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[i3d]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[id3]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Testing very long identifier (following identifiers are the same for more than 256 characters)">
+		<SourceCode><![CDATA[
+veryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVery_long_id_its_really_as_long_as_it_seems_to_be_but_it_should_work_and_be_accepted_as_an_identifier_because_we_have_no_identifier_significant_part_limit
+veryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVery_long_id_its_really_as_long_as_it_seems_to_be_but_it_should_work_and_be_accepted_as_an_identifier_because_we_have_ndifferent_from_the_identifier_above
+]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[veryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVery_long_id_its_really_as_long_as_it_seems_to_be_but_it_should_work_and_be_accepted_as_an_identifier_because_we_have_no_identifier_significant_part_limit]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[veryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVeryVery_long_id_its_really_as_long_as_it_seems_to_be_but_it_should_work_and_be_accepted_as_an_identifier_because_we_have_ndifferent_from_the_identifier_above]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Testing identifiers containing universal character names (IMPORTANT TODO: universal character name escape sequences in identifiers are not yet translated -> lexems still contain the escape sequences)">
+		<SourceCode><![CDATA[
+/* Following universal character's are Bopomofo */
+i\u3105d
+\u3105id
+id\u3105
+\u3105
+_\u3105
+\u3105_
+/* Following universal character's are Thai */
+i\U00000e32
+\U00000e32id
+id\U00000e32
+\U00000e32
+_\U00000e32
+\U00000e32_
+/* Mixing Thai and Bopomofo */
+\u0e32\U00003105
+i\u0e32i\U00003105i
+\U00000e32_\u3105]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[i\u3105d]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[\u3105id]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[id\u3105]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[\u3105]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[_\u3105]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[\u3105_]]></Lexem>
+			</Token>
+			
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[i\U00000e32]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[\U00000e32id]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[id\U00000e32]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[\U00000e32]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[_\U00000e32]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[\U00000e32_]]></Lexem>
+			</Token>
+			
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[\u0e32\U00003105]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[i\u0e32i\U00003105i]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[\U00000e32_\u3105]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>	
+</PositiveTests>
+
+<NegativeTests>
+	<LexicalTestFragment Description="Checking that universal characters in identifiers are not representing characters in the basic character set">
+		<SourceCode><![CDATA[i\u0069i							// iii]]></SourceCode>
+		<SourceCode><![CDATA[\u0069d							// id]]></SourceCode>
+		<SourceCode><![CDATA[i\u0064							// id]]></SourceCode>
+		<SourceCode><![CDATA[\u0069								// i]]></SourceCode>
+		<SourceCode><![CDATA[_\u0069d							// _id]]></SourceCode>
+		<SourceCode><![CDATA[i\u0064_							// id_]]></SourceCode>
+		
+		<SourceCode><![CDATA[i\U00000069i						// iii]]></SourceCode>
+		<SourceCode><![CDATA[\U00000069d						// id]]></SourceCode>
+		<SourceCode><![CDATA[i\U00000064						// id]]></SourceCode>
+		<SourceCode><![CDATA[\U00000069							// i]]></SourceCode>
+		<SourceCode><![CDATA[_\U00000069d						// _id]]></SourceCode>
+		<SourceCode><![CDATA[i\U00000064_						// id_]]></SourceCode>
+		
+		<SourceCode><![CDATA[id\u007eid							//id~id]]></SourceCode>
+		<SourceCode><![CDATA[\u007Eid							//~id]]></SourceCode>
+		<SourceCode><![CDATA[id\u007e							//id~]]></SourceCode>
+		<SourceCode><![CDATA[\u007E								//~]]></SourceCode>
+		<SourceCode><![CDATA[_\u007E							//_~]]></SourceCode>
+		<SourceCode><![CDATA[\u007E_							//~_]]></SourceCode>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Checking that the initial character of an identifier is no universal character representing a digit">
+		<SourceCode><![CDATA[\u0660_id]]></SourceCode>
+		<SourceCode><![CDATA[\u0C6F]]></SourceCode>
+		<SourceCode><![CDATA[\U00002175id]]></SourceCode>
+	</LexicalTestFragment>
+</NegativeTests>
+</LexicalTestSuite>

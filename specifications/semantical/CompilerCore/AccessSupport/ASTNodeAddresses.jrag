@@ -1,0 +1,10 @@
+/**
+ * @author C. Bürger
+ */
+aspect ASTNodeAddresses {
+	syn jastaddc.semantics.NodeAddress Compilation.NodeAddress() =
+		new jastaddc.semantics.NodeAddress(1).addAddressPart(1);
+	
+	eq ASTNode.getChild(int index).NodeAddress() =
+		NodeAddress().clone().addAddressPart(index + 1);
+}

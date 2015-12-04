@@ -1,0 +1,7 @@
+aspect Basics {
+	// TODO:
+	syn boolean Type.IsIntegerType() = false;
+	syn boolean FunctionType.IsIdenticalFunctionType(Type otherType) = true;
+	syn Type Expression.Type() = (Type)ErrorBuilder().ConstructErrorNode(Type.class);
+	syn boolean Expression.IsConstantExpression() = false;
+}

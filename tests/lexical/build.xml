@@ -1,0 +1,38 @@
+<!-- Ant build script to execute the lexical test of the JastAddC compiler.
+     
+     @author C. Bürger
+-->
+
+<!-- Targets for working from Eclipse:
+       validate			- runs the test cases
+ -->
+
+<project name="JastAddC_LexicalTests" default="validate">
+	<path id="_basedir">
+		<pathelement location="./../.."/>
+	</path>
+	<property name="_basedir" refid="_basedir"/>
+	
+	<taskdef classname="org.lexicaltestsuite.AntTask" name="lexicaltestsuite">
+		<classpath>
+			<!-- The AST-Regression-Test-Suite is needed, because for the syntactical
+				 tests the AST nodes implement an interface of the AST-Regression-Test-Suite. -->
+			<pathelement path="${_basedir}/sources/libraries/astregressiontestsuite.jar"/>
+			<pathelement path="${_basedir}/sources/libraries/lexicaltestsuite.jar"/>
+			<pathelement path="${_basedir}/sources/libraries/jdom.jar"/>
+			<pathelement path="${_basedir}/sources/libraries/beaver-rt.jar"/>
+			<pathelement path="${_basedir}/distribution/jastaddc.jar"/>
+		</classpath>
+	</taskdef>
+	
+	<target name="validate">
+		<lexicaltestsuite
+			configuration="jastaddc.tests.lexical.LexicalTestsuiteConfiguration"
+			log="${_basedir}/tests/lexical/LexicalTests.log">
+			<fileset dir="${_basedir}/tests/lexical">
+				<include name="**/*.xml"/>
+				<exclude name="build.xml"/>
+			</fileset>
+		</lexicaltestsuite>
+	</target>
+</project>

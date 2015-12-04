@@ -1,0 +1,139 @@
+/**
+ * @author C. Bürger
+ */
+aspect ReadableTypeNames {
+	eq PrimitiveType.ReadableTypeName() =
+		getType().typeName();
+	eq TypedefTypeReference.ReadableTypeName() =
+		"user type ["+ getReferenceName().Name() +"]";
+	eq StructureTypeReference.ReadableTypeName() =
+		"structure type ["+ getReferenceName().Name() +"]";
+	eq UnionTypeReference.ReadableTypeName() =
+		"union type ["+ getReferenceName().Name() +"]";
+	eq EnumTypeReference.ReadableTypeName() =
+		"enumeration type ["+ getReferenceName().Name() +"]";
+	eq Array.ReadableTypeName() =
+		"array of "+ getElementType().RetrieveFinalNode().ReadableTypeName();
+	eq Pointer.ReadableTypeName() =
+		"pointer to "+ getType().RetrieveFinalNode().ReadableTypeName();
+	eq FunctionType.ReadableTypeName() {
+		StringBuilder result = new StringBuilder();
+		result.append("function ");
+		if (getNumParameter() > 0) {
+			result.append(" with following parameters {");
+			for (int i = 0; i < getNumParameter(); i++) {
+				result.append(i);
+				result.append(") ");
+				result.append(getParameter(i).getType().RetrieveFinalNode().ReadableTypeName());
+				result.append(", ");
+			}
+			result.deleteCharAt(result.length() - 1);
+			result.deleteCharAt(result.length() - 1);
+			result.append("} ");
+		} else {
+			result.append("without parameters ");
+		}
+		result.append("returning ");
+		result.append(getReturnType().RetrieveFinalNode().ReadableTypeName());
+		return result.toString();
+	}
+	eq VariadicFunction.ReadableTypeName() =
+		"variadic " + super.ReadableTypeName();
+	eq Enumeration.ReadableTypeName() {
+		StringBuilder result = new StringBuilder();
+		result.append("enumartion ");
+		if (hasTag()) {
+			result.append("named [");
+			result.append(Name());
+			result.append("] ");
+		}
+		result.append("with [");
+		result.append(getNumEnumerationElement());
+		result.append("] elements");
+		if (getNumEnumerationElement() > 0) {
+			result.append(" named {");
+			for (int i = 0; i < getNumEnumerationElement(); i++) {
+				result.append(getEnumerationElement(i).Name());
+				result.append(", ");
+			}
+			result.deleteCharAt(result.length() - 1);
+			result.deleteCharAt(result.length() - 1);
+			result.append('}');
+		}
+		return result.toString();
+	}
+	eq Structure.ReadableTypeName() {
+		StringBuilder result = new StringBuilder();
+		result.append("structure ");
+		if (hasTag()) {
+			result.append("named [");
+			result.append(Name());
+			result.append("] ");
+		}
+		result.append("with [");
+		result.append(getNumElement());
+		result.append("] member elements");
+		if (getNumElement() > 0) {
+			result.append(" {");
+			for (int i = 0; i < getNumElement(); i++) {
+				result.append(i);
+				result.append(") ");
+				result.append(getElement(i).readableElementName());
+				result.append(", ");
+			}
+			result.deleteCharAt(result.length() - 1);
+			result.deleteCharAt(result.length() - 1);
+			result.append('}');
+		}
+		return result.toString();
+	}
+	eq Union.ReadableTypeName() {
+		StringBuilder result = new StringBuilder();
+		result.append("union ");
+		if (hasTag()) {
+			result.append("named [");
+			result.append(Name());
+			result.append("] ");
+		}
+		result.append("with [");
+		result.append(getNumElement());
+		result.append("] member elements");
+		if (getNumElement() > 0) {
+			result.append(" {");
+			for (int i = 0; i < getNumElement(); i++) {
+				result.append(i);
+				result.append(") ");
+				result.append(getElement(i).readableElementName());
+				result.append(", ");
+			}
+			result.deleteCharAt(result.length() - 1);
+			result.deleteCharAt(result.length() - 1);
+			result.append('}');
+		}
+		return result.toString();
+	}
+	
+	/** Internal support methods */
+	
+	protected abstract String UnionOrStructureElement.readableElementName();
+	protected String NormalUnionOrStructureElement.readableElementName() {
+		StringBuilder result = new StringBuilder();
+		result.append ("element named [");
+		result.append(getName().Name());
+		result.append("] of type ");
+		result.append(getType().RetrieveFinalNode().ReadableTypeName());
+		return result.toString();
+	}
+	protected String BitField.readableElementName() {
+		StringBuilder result = new StringBuilder();
+		if (!hasName())
+			result.append("anonymous ");
+		result.append("bitfield");
+		if (hasName()) {
+			result.append(" named [");
+			result.append(getName().Name());
+			result.append("]");
+		}
+		return result.toString();
+	}
+}

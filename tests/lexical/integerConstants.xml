@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LexicalTestSuite Description="Integer constants tests">
+<PositiveTests>
+	<LexicalTestFragment Description="Testing basic integer constants">
+		<SourceCode><![CDATA[0 0756 213 1234567890]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[0]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[0756]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[213]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[1234567890]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Testing hexadecimal integer constants">
+		<SourceCode><![CDATA[0xabcdef0123456789 0X0123456789abcdef 0x9A87B6C5432D1E0F 0XF0E1D2C3B4A56789]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[0xabcdef0123456789]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[0X0123456789abcdef]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[0x9A87B6C5432D1E0F]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[0XF0E1D2C3B4A56789]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Testing integer constant suffixes">
+		<SourceCode><![CDATA[33u 33U 2l 2L 45ll 45LL 0ul 0UL 0Ul 0uL 9lu 9LU 9Lu 9lU 123ull 123ULL 123Ull 123uLL 3llu 3LLU 3LLu 3llU]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[33u]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[33U]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[2l]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[2L]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[45ll]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[45LL]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[0ul]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[0UL]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[0Ul]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[0uL]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[9lu]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[9LU]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[9Lu]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[9lU]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[123ull]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[123ULL]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[123Ull]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[123uLL]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[3llu]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[3LLU]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[3LLu]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[3llU]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Testing for illegal suffix combination resulting in several token">
+		<SourceCode><![CDATA[3llL 54uLLu 045uU]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[3ll]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[L]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[54uLL]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[u]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[045u]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[U]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Testing for illegal value ranges resulting in several token">
+		<SourceCode><![CDATA[1A 03F5 0xLL]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[1]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[A]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[03]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[F5]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[0]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[xLL]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+</PositiveTests>
+
+<NegativeTests/>
+</LexicalTestSuite>

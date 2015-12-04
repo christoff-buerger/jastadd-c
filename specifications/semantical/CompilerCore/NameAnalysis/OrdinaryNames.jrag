@@ -1,0 +1,99 @@
+/**
+ * Check the general name analysis strategy description for additional informations
+ * about the attribute definitions given here and their interaction.
+ * 
+ * @author C. Bürger
+ */
+aspect OrdinaryNames {
+	/**
+	 * Generic name analysis algorithm:
+	 */
+	eq ASTNode.IntroducesNewOrdinaryNameBlock() =
+		IsNodeTypeOrdinaryNameBlock() || IsOrdinaryNameBlockInContext(this);
+	eq ASTNode.FindNodeIntroducingThisOrdinaryNameBlock() =
+		IntroducesNewOrdinaryNameBlock() ? this : getParent().FindNodeIntroducingThisOrdinaryNameBlock();
+	
+	// Each node introducing a new ordinary namespace block has a collection of
+	// all the ordinary entities declared in this block:
+	coll java.util.List<IOrdinaryNameDeclaration> ASTNode.LocalOrdinaryNameDeclarations()
+		[new java.util.ArrayList<IOrdinaryNameDeclaration>()] with add;
+	
+	eq ASTNode.LookUpOrdinaryName(String name) = LookUpOrdinaryName(name, NodeAddress());
+	eq ASTNode.LookUpOrdinaryName(String name, jastaddc.semantics.NodeAddress upToAddress) {
+		ASTNode blockNode = FindNodeIntroducingThisOrdinaryNameBlock();
+		java.util.List<IOrdinaryNameDeclaration> result = ListFilter.filter(
+				blockNode.LocalOrdinaryNameDeclarations(),
+				new AddressFilter((ListFilter.AFilterCriteria)new OrdinaryNameFilter(name), upToAddress));
+		return !result.isEmpty() ? result : (blockNode.getParent() == null ?
+					new java.util.ArrayList<TagedType>(0) :
+					blockNode.getParent().LookUpOrdinaryName(name, upToAddress));
+	}
+	
+	/**
+	 * The ASTNodes introducing new blocks for ordinary names.
+	 */
+	// By default a node just asks it's parent node if some node
+	// introduces a new ordinary name block because of the nodes context:
+	syn boolean ASTNode.IsOrdinaryNameBlockInContext(ASTNode node) =
+		getParent() == null ? false : getParent().IsOrdinaryNameBlockInContext(node);
+	// By default no node types introduce new ordinary name blocks except the root node:
+	syn boolean ASTNode.IsNodeTypeOrdinaryNameBlock() =
+		getParent() == null ? true : false;
+	// A TranslationUnit defines the global block/file scope [6.2.1:2;4]:
+	eq TranslationUnit.IsNodeTypeOrdinaryNameBlock() = true;
+	// Compound statements are blocks [6.8.2:2] S.132:
+	eq CompoundStatement.IsNodeTypeOrdinaryNameBlock() = true;
+	// Selection and iteration statements always introduce new blocks
+	// [6.8.4:3] S.133, [6.8.5:5] S.135:
+	eq ConditionalControlFlowStatement.IsNodeTypeOrdinaryNameBlock() = true;
+	// Selection and iteration statement's statement childs always introduce new blocks
+	// [6.8.4:3] S.133, [6.8.5:5] S.135:
+	eq ConditionalControlFlowStatement.IsOrdinaryNameBlockInContext(ASTNode node) =
+		getBody() == node ? true : super.IsOrdinaryNameBlockInContext(node);
+	eq IfStatement.IsOrdinaryNameBlockInContext(ASTNode node) =
+		getAlternative() == node ? true : super.IsOrdinaryNameBlockInContext(node);
+	
+	/**
+	 * The ASTNodes adding some name to the ordinary name space.
+	 */
+	Declaration contributes this when FindNodeToContributeOrdinaryName() != null
+		to ASTNode.LocalOrdinaryNameDeclarations() for FindNodeToContributeOrdinaryName();
+	EnumerationElement contributes this
+		to ASTNode.LocalOrdinaryNameDeclarations() for FindNodeIntroducingThisOrdinaryNameBlock();
+	
+	/** Internal support methods */
+	
+	// Return null, if the declaration is not contributing to the ordinary name space:
+	syn ASTNode Declaration.FindNodeToContributeOrdinaryName() =
+		// Does the declaration declare an ordinary name space entity?
+		hasBindedName() ?
+			(// Is the declaration a parameter declaration or not?
+			IsParameterDeclaration() == null ?
+					// There are no special rules for declarations, which are no
+					// parameter declaration:
+					FindNodeIntroducingThisOrdinaryNameBlock() :
+					// It is a parameter declaration. Is the parameter declaration only
+					// part of a simple function type or is the function type itself
+					// part of a function declaration?:
+					(IsParameterDeclaration().IsPartOfFunctionDeclaration() == null ?
+							// Parameter declarations of function types are not part of the
+							// ordinary namespace, they are ignored, e.g. in
+							// sizeof(void(*)(int para));
+							// para is not declarared in the ordinary namespace:
+							null :
+							// It is part of a function declaration. Is it a function definition
+							// or a prototype?:
+							(IsParameterDeclaration().IsPartOfFunctionDeclaration().IsFunctionDefinition() ?
+									// Adding function parameter declarations to the function body, as each
+									// parameter of a function definition is in effect declared at the head
+									// of the compound statement that constitutes the function body [6.9.1:9] S.142:
+									((FunctionDefinitionInitializer)IsParameterDeclaration().IsPartOfFunctionDeclaration().getInitializer()).getBody() :
+									// Parameter declarations of function prototyps are not part of
+									// the ordinary name space, e.g. in
+									// void proto(int para);
+									// para is not declarared in the ordinary name space:
+									null))
+			) :
+			// The declaration does not declare any entity in the ordinary name space:
+			null;
+}

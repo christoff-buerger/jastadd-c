@@ -1,0 +1,40 @@
+; TextPad5 syntax definition for JastAdd abstract syntax tree (AST) specifications.
+;
+; @author C. Bürger
+
+C=1
+
+[Syntax]
+Namespace1 = 6
+IgnoreCase = No
+KeyWordLength =
+BracketChars = []
+OperatorChars = :=;*
+PreprocStart =
+SyntaxStart =
+SyntaxEnd =
+HexPrefix =
+CommentStart = /*
+CommentEnd = */
+CommentStartAlt =
+CommentEndAlt =
+SingleComment = //
+SingleCommentCol =
+SingleCommentAlt =
+SingleCommentColAlt =
+SingleCommentEsc =
+StringsSpanLines = Yes
+StringStart =
+StringEnd =
+StringAlt =
+StringEsc =
+CharStart = <
+CharEnd = >
+CharEsc =
+
+[Keywords 1]
+abstract
+
+[Keywords 2]
+
+[Preprocessor keywords]

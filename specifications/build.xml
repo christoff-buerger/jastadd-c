@@ -1,0 +1,148 @@
+<!-- Ant build script to generate the JastAddC's source code.
+     All specifications will be executed.
+     
+     @author C. Bürger
+-->
+
+<!-- Targets for working from Eclipse:
+       gen		- executes all of JastAddC's specifications
+       			  to generate their source code
+       cleanGen	- removes all generated files and their class files
+-->
+
+<project name="JastAddC_All" default="gen" basedir="./..">
+	<!-- IMPORTANT: Do not inherit properties in the following.
+	                Packages contain not only generated files.
+	                Check the delete scripts after changes carefully
+	                before executing any scripts. Test the delete
+	                scripts before commiting them into the version
+	                system
+	-->
+	
+	<target name="gen"
+		depends="genLexical,
+		genSyntactical,
+		genSemantical"
+	/>
+	
+	<target name="genLexical">
+		<ant
+	    	antfile="buildCCharacterMapper_.xml"
+	    	dir="${basedir}/specifications/lexical"
+	    	inheritAll="false"
+	    	target="gen"
+	    />
+		<ant
+			antfile="buildCLexer.xml"
+			dir="${basedir}/specifications/lexical"
+			inheritAll="false"
+			target="gen"
+		/>
+	    <ant
+	    	antfile="buildCSourceReader.xml"
+	    	dir="${basedir}/specifications/lexical"
+	    	inheritAll="false"
+	    	target="gen"
+	    />
+		<ant
+			antfile="buildCSplicer.xml"
+			dir="${basedir}/specifications/lexical"
+			inheritAll="false"
+			target="gen"
+		/>
+		
+		<ant
+			antfile="buildCIntegerConstantLexer.xml"
+			dir="${basedir}/specifications/lexical"
+			inheritAll="false"
+			target="gen"
+		/>
+		<ant
+			antfile="buildCFloatingConstantLexer.xml"
+			dir="${basedir}/specifications/lexical"
+			inheritAll="false"
+			target="gen"
+		/>
+	</target>
+	
+	<target name="genSyntactical">
+		<ant
+			antfile="buildCParser.xml"
+			dir="${basedir}/specifications/syntactical"
+			inheritAll="false"
+			target="gen"
+		/>
+	</target>
+	
+	<target name="genSemantical">
+		<ant
+			antfile="buildAST.xml"
+			dir="${basedir}/specifications/semantical"
+			inheritAll="false"
+			target="gen"
+		/>
+	</target>
+	
+	<target name="cleanGen"
+		depends="cleanGenLexical,
+			cleanGenSyntactical,
+			cleanGenSemantical"
+	/>
+	
+	<target name="cleanGenLexical">
+		<ant
+			antfile="buildCCharacterMapper_.xml"
+			dir="${basedir}/specifications/lexical"
+			inheritAll="false"
+			target="cleanGen"
+		/>
+		<ant
+			antfile="buildCLexer.xml"
+			dir="${basedir}/specifications/lexical"
+			inheritAll="false"
+			target="cleanGen"
+		/>
+		<ant
+			antfile="buildCSourceReader.xml"
+			dir="${basedir}/specifications/lexical"
+			inheritAll="false"
+			target="cleanGen"
+		/>
+		<ant
+			antfile="buildCSplicer.xml"
+			dir="${basedir}/specifications/lexical"
+			inheritAll="false"
+			target="cleanGen"
+		/>
+		<ant
+			antfile="buildCIntegerConstantLexer.xml"
+			dir="${basedir}/specifications/lexical"
+			inheritAll="false"
+			target="cleanGen"
+		/>
+		<ant
+			antfile="buildCFloatingConstantLexer.xml"
+			dir="${basedir}/specifications/lexical"
+			inheritAll="false"
+			target="cleanGen"
+		/>
+	</target>
+	
+	<target name="cleanGenSyntactical">
+		<ant
+			antfile="buildCParser.xml"
+			dir="${basedir}/specifications/syntactical"
+			inheritAll="false"
+			target="cleanGen"
+		/>
+	</target>
+	
+	<target name="cleanGenSemantical">
+		<ant
+			antfile="buildAST.xml"
+			dir="${basedir}/specifications/semantical"
+			inheritAll="false"
+			target="cleanGen"
+		/>
+	</target>
+</project>

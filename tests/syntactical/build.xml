@@ -1,0 +1,53 @@
+<!-- Ant build script to execute AST-Regression-Test-Suite test cases for the C99
+     compiler or to generate the test cases (validators) from source code.
+     
+     @author C. Bürger
+-->
+
+<!-- Targets for working from Eclipse:
+       validate			- runs the test cases
+       makeValid		- constructs the test cases from the *.c files
+       					  given in the 'sourcecode' directory
+ -->
+
+<project name="JastAddC_SyntacticalTests" default="validate">
+	<path id="_basedir">
+		<pathelement location="./../.."/>
+	</path>
+	<property name="_basedir" refid="_basedir"/>
+	
+	<taskdef classname="org.astregressiontestsuite.AntTask" name="astregressiontestsuite">
+		<classpath>
+			<pathelement path="${_basedir}/sources/libraries/astregressiontestsuite.jar"/>
+			<pathelement path="${_basedir}/sources/libraries/jdom.jar"/>
+			<pathelement path="${_basedir}/sources/libraries/beaver-rt.jar"/>
+			<pathelement path="${_basedir}/distribution/jastaddc.jar"/>
+		</classpath>
+	</taskdef>
+	
+	<target name="validate">
+		<astregressiontestsuite
+			compiler="jastaddc.tests.syntactical.CompilerAdapter"
+			outdir="${_basedir}/tests/syntactical/testcases/simple.zip"
+			makevalid="false"
+			overwrite="false"
+			log="${_basedir}/tests/syntactical/ASTTests.log">
+			<fileset dir="${_basedir}/tests/syntactical/testcases">
+				<include name="**/*.zip"/>
+			</fileset>
+		</astregressiontestsuite>
+	</target>
+	
+	<target name="makeValid">
+		<astregressiontestsuite
+			compiler="jastaddc.tests.syntactical.CompilerAdapter"
+			outdir="${_basedir}/tests/syntactical/testcases/simple.zip"
+			makevalid="true"
+			overwrite="true"
+			log="${_basedir}/tests/syntactical/ASTTests.log">
+			<fileset dir="${_basedir}/tests/syntactical/sourcecode">
+				<include name="**/*.c"/>
+			</fileset>
+		</astregressiontestsuite>
+	</target>
+</project>

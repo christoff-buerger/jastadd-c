@@ -1,0 +1,40 @@
+/**
+ * This aspect provides support methods/classes for the flow analysis
+ * module.
+ * 
+ * @author C. Bürger
+ */
+aspect FlowAnalysisSupport {
+	/**
+	 * Support class for set operations.
+	 * 
+	 * @author C. Bürger
+	 */
+	public class SetOp {
+		public static <T> java.util.Set<T> union(java.util.Set<T> set1, java.util.Set<T> set2){
+			java.util.HashSet<T> union = new java.util.HashSet<T>(set1);
+			union.addAll(set2);
+			return union;
+		}
+		public static <T> java.util.Set<T> union(java.util.Set<T> set1, T elem){
+			java.util.HashSet<T> union = new java.util.HashSet<T>(set1);
+			if (elem != null)
+				union.add(elem);
+			return union;
+		}
+		public static <T> java.util.Set<T> union(T elem, java.util.Set<T> set1){
+			java.util.HashSet<T> union = new java.util.HashSet<T>(set1);
+			if (elem != null)
+				union.add(elem);
+			return union;
+		}
+		public static <T> java.util.Set<T> union(T elem1, T elem2){
+			java.util.HashSet<T> union = new java.util.HashSet<T>();
+			if (elem1 != null)
+				union.add(elem1);
+			if (elem2 != null)
+				union.add(elem2);
+			return union;
+		}
+	}
+}

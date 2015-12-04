@@ -1,0 +1,16 @@
+/**
+ * This aspect provides support methods/classes used by the mapping
+ * module.
+ * 
+ * @author C. Bürger
+ */
+aspect ConcreteToASTMappingSupport {
+	/**
+	 * Support the construction of unique tags for anonymous types:
+	 */
+	private int Compilation.constructedAnonymousTagsCount = 0;
+	protected String Compilation.buildAnonymousTag() {
+		constructedAnonymousTagsCount++;
+		return "§Anonymous TagedType ["+ constructedAnonymousTagsCount +"]§";
+	}
+}

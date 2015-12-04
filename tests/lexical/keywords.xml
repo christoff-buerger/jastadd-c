@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LexicalTestSuite Description="Keyword tests">
+<PositiveTests>
+	<LexicalTestFragment Description="Testing if all keywords are recognized">
+		<SourceCode><![CDATA[auto break case char const continue default do double else
+enum extern float for goto if inline int long register
+restrict return short signed sizeof static struct switch typedef union
+unsigned void volatile while]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="kAUTO">
+				<Lexem><![CDATA[auto]]></Lexem>
+			</Token>
+			<Token Type="kBREAK">
+				<Lexem><![CDATA[break]]></Lexem>
+			</Token>
+			<Token Type="kCASE">
+				<Lexem><![CDATA[case]]></Lexem>
+			</Token>
+			<Token Type="kCHAR">
+				<Lexem><![CDATA[char]]></Lexem>
+			</Token>
+			<Token Type="kCONST">
+				<Lexem><![CDATA[const]]></Lexem>
+			</Token>
+			<Token Type="kCONTINUE">
+				<Lexem><![CDATA[continue]]></Lexem>
+			</Token>
+			<Token Type="kDEFAULT">
+				<Lexem><![CDATA[default]]></Lexem>
+			</Token>
+			<Token Type="kDO">
+				<Lexem><![CDATA[do]]></Lexem>
+			</Token>
+			<Token Type="kDOUBLE">
+				<Lexem><![CDATA[double]]></Lexem>
+			</Token>
+			<Token Type="kELSE">
+				<Lexem><![CDATA[else]]></Lexem>
+			</Token>
+			<Token Type="kENUM">
+				<Lexem><![CDATA[enum]]></Lexem>
+			</Token>
+			<Token Type="kEXTERN">
+				<Lexem><![CDATA[extern]]></Lexem>
+			</Token>
+			<Token Type="kFLOAT">
+				<Lexem><![CDATA[float]]></Lexem>
+			</Token>
+			<Token Type="kFOR">
+				<Lexem><![CDATA[for]]></Lexem>
+			</Token>
+			<Token Type="kGOTO">
+				<Lexem><![CDATA[goto]]></Lexem>
+			</Token>
+			<Token Type="kIF">
+				<Lexem><![CDATA[if]]></Lexem>
+			</Token>
+			<Token Type="kINLINE">
+				<Lexem><![CDATA[inline]]></Lexem>
+			</Token>
+			<Token Type="kINT">
+				<Lexem><![CDATA[int]]></Lexem>
+			</Token>
+			<Token Type="kLONG">
+				<Lexem><![CDATA[long]]></Lexem>
+			</Token>
+			<Token Type="kREGISTER">
+				<Lexem><![CDATA[register]]></Lexem>
+			</Token>
+			<Token Type="kRESTRICT">
+				<Lexem><![CDATA[restrict]]></Lexem>
+			</Token>
+			<Token Type="kRETURN">
+				<Lexem><![CDATA[return]]></Lexem>
+			</Token>
+			<Token Type="kSHORT">
+				<Lexem><![CDATA[short]]></Lexem>
+			</Token>
+			<Token Type="kSIGNED">
+				<Lexem><![CDATA[signed]]></Lexem>
+			</Token>
+			<Token Type="kSIZEOF">
+				<Lexem><![CDATA[sizeof]]></Lexem>
+			</Token>
+			<Token Type="kSTATIC">
+				<Lexem><![CDATA[static]]></Lexem>
+			</Token>
+			<Token Type="kSTRUCT">
+				<Lexem><![CDATA[struct]]></Lexem>
+			</Token>
+			<Token Type="kSWITCH">
+				<Lexem><![CDATA[switch]]></Lexem>
+			</Token>
+			<Token Type="kTYPEDEF">
+				<Lexem><![CDATA[typedef]]></Lexem>
+			</Token>
+			<Token Type="kUNION">
+				<Lexem><![CDATA[union]]></Lexem>
+			</Token>
+			<Token Type="kUNSIGNED">
+				<Lexem><![CDATA[unsigned]]></Lexem>
+			</Token>
+			<Token Type="kVOID">
+				<Lexem><![CDATA[void]]></Lexem>
+			</Token>
+			<Token Type="kVOLATILE">
+				<Lexem><![CDATA[volatile]]></Lexem>
+			</Token>
+			<Token Type="kWHILE">
+				<Lexem><![CDATA[while]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Test for longest match rule application">
+		<SourceCode><![CDATA[mybreak breaker mybreaker ifbreak]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[mybreak]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[breaker]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[mybreaker]]></Lexem>
+			</Token>
+			<Token Type="IDENTIFIER">
+				<Lexem><![CDATA[ifbreak]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Test that even keywords are allowed to be broken over several lines">
+		<SourceCode><![CDATA[i\
+f
+con\
+tin\
+ue]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="kIF">
+				<Lexem><![CDATA[if]]></Lexem>
+			</Token>
+			<Token Type="kCONTINUE">
+				<Lexem><![CDATA[continue]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+</PositiveTests>
+
+<NegativeTests/>
+</LexicalTestSuite>

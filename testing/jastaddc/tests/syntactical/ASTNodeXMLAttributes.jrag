@@ -1,0 +1,20 @@
+/**
+ * This aspect adds information unique for the JastAddC compiler to it's
+ * XML nodes.
+ * 
+ * @author C. Bürger
+ */
+aspect ASTNodeXMLAttributes {
+	public java.util.List<org.jdom.Attribute> Identifier.createXMLNodeAttributes() {
+		java.util.List<org.jdom.Attribute> result =
+			new java.util.LinkedList<org.jdom.Attribute>();
+		result.add(new org.jdom.Attribute("Value", Name()));
+		return result;
+	}
+	public java.util.List<org.jdom.Attribute> Constant.createXMLNodeAttributes() {
+		java.util.List<org.jdom.Attribute> result =
+			new java.util.LinkedList<org.jdom.Attribute>();
+		result.add(new org.jdom.Attribute("Lexem", getLexem()));
+		return result;
+	}
+}

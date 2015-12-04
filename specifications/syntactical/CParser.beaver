@@ -1,0 +1,2228 @@
+%header {:
+/**
+ * Beaver generated parser for the JastAdd C99 front end.
+ * The parser constructs an intermediate JastAdd abstract syntax tree, which
+ * is rewritten into the final abstract syntax tree using JastAdd specifications.
+ * 
+ * The grammar used, is the one of the C99 standard, which is based on
+ * a grammar by Jeff Lee (further developed since it's first release in 1985
+ * by the standard committee.). The grammar specification this one is based on
+ * can be found at http://www.quut.com/c/ANSI-C-grammar-y.html.
+ * 
+ * @author C. Bürger
+ */
+:};
+
+%package "jastaddc.syntax.syntacticalanalyse";
+%import "jastaddc.Compiler",
+	"jastaddc.SourceError",
+	"jastaddc.semantics.ast.*";
+
+%class "CParser";
+
+%embed {:
+	private Compilation compilation;
+	
+	class Events extends Parser.Events {
+		public void scannerError(Scanner.Exception exc) {
+			jastaddc.SourceError error =
+				new jastaddc.SourceError(exc.getMessage());
+			error.line = exc.line;
+			error.column = exc.column;
+			error.sourceName = compilation.sourceName();
+			error.errorType = jastaddc.SourceError.ErrorType.LEXICAL;
+			error.errorLevel = jastaddc.SourceError.ErrorLevel.ERROR;
+			compilation.addError(error);
+		}
+		
+		public void syntaxError(Symbol token) {
+			StringBuilder errorM = new StringBuilder();
+			errorM.append("Unexpected token [");
+			errorM.append(token.value != null ? token.value.toString() : "§No Token Value§");
+			errorM.append(';');
+			errorM.append(Terminals.NAMES[token.getId()]);
+			errorM.append("].");
+			jastaddc.SourceError error =
+				new jastaddc.SourceError(errorM.toString());
+			error.line = token.getLine(token.getStart());
+			error.column = token.getColumn(token.getStart());
+			error.sourceName = compilation.sourceName();
+			error.errorType = jastaddc.SourceError.ErrorType.SYNTACTICAL;
+			error.errorLevel = jastaddc.SourceError.ErrorLevel.ERROR;
+			compilation.addError(error);
+		}
+		
+		public void unexpectedTokenRemoved(Symbol token) {}
+		public void missingTokenInserted(Symbol token) {}
+		public void misspelledTokenReplaced(Symbol token) {}
+		public void errorPhraseRemoved(Symbol error) {}
+	}
+	
+	{
+		report = new Events();
+	}
+
+	public TranslationUnit parse(Scanner lexer, String sourceName) throws Compiler.ConfigurationException {
+		TranslationUnit tunit = new TranslationUnit();
+		compilation = new Compilation(
+			tunit,
+			new DefaultErrorBuilder(new Opt()));
+		compilation.sourceName = sourceName;
+		List decls = null;
+		
+		try {
+			decls = (List)parse(lexer);
+		} catch(Parser.Exception exc) {
+			if (decls == null)
+				decls = new List();
+			StringBuilder errorM = new StringBuilder();
+			errorM.append("Unresolved parsing errors: ");
+			errorM.append(exc.getMessage());
+			jastaddc.SourceError error =
+				new jastaddc.SourceError(errorM.toString());
+			error.line = null;
+			error.column = null;
+			error.sourceName = sourceName;
+			error.errorType = jastaddc.SourceError.ErrorType.SYNTACTICAL;
+			error.errorLevel = jastaddc.SourceError.ErrorLevel.ERROR;
+			compilation.addError(error);
+		} catch (java.io.IOException exc) {
+			throw new Compiler.ConfigurationException(exc);
+		}
+		
+		tunit.setDeclarationList(decls);
+		return tunit;
+	}
+:};
+
+%init {: /* no additional constructor operations */ :};
+
+/* ********************************************************* GRAMMAR TERMINALS ********************************************************* */
+
+/*
+ * Punctuators (6.4.6)
+ */
+
+/* 
+ *       Part 1 / 6
+ * ===========================				Original Purpose
+ * [ pBRACKETOPENSQUARE		<:
+ * ] pBRACKETCLOSESQUARE	:>
+ * ( pBRACKETOPENROUND
+ * ) pBRACKETCLOSEROUND
+ * { pBRACKETOPENCURLY		<%
+ * } pBRACKETCLOSECURLY		%>
+ * . pPOINT
+ * -> pMINUS_GREATER							PTR_OP
+ */
+
+%terminals pBRACKETOPENSQUARE, pBRACKETCLOSESQUARE, pBRACKETOPENROUND, pBRACKETCLOSEROUND, pBRACKETOPENCURLY, pBRACKETCLOSECURLY;
+%terminals pPOINT, pMINUS_GREATER;
+
+/*
+ *       Part 2 / 6
+ * ===========================				Original Purpose
+ *
+ * ++ pPLUS_PLUS								INC_OP
+ * -- pMINUS_MINUS								DEC_OP
+ * & pAND
+ * * pSTAR
+ * + pPLUS
+ * - pMINUS
+ * ~ pTILDE
+ * ! pEXCLAMATIONMARK
+ */
+
+%terminals pPLUS_PLUS, pMINUS_MINUS;
+%terminals pAND, pSTAR, pPLUS, pMINUS, pTILDE, pEXCLAMATIONMARK;
+
+/*
+ *       Part 3 / 6
+ * ===========================				Original Purpose
+ *
+ * / pSLASH
+ * % pPRECENT
+ * << pLESSER_LESSER							LEFT_OP
+ * >> pGREATER_GREATER							RIGHT_OP
+ * < pLESSER
+ * > pGREATER
+ * <= pLESSER_EQUALS							LE_OP
+ * >= pGREATER_EQUALS							GE_OP
+ * == pEQUALS_EQUALS							EQ_OP
+ * != pEXCLAMATIONMARK_EQUALS					NE_OP
+ * ^ pARROWUP
+ * | pLINEVERTICAL
+ * && pAND_AND									AND_OP
+ * || pLINEVERTICAL_LINEVERTICAL				OR_OP
+ */
+
+%terminals pSLASH, pPRECENT, pLESSER_LESSER, pGREATER_GREATER;
+%terminals pLESSER, pGREATER, pLESSER, pGREATER, pLESSER_EQUALS, pGREATER_EQUALS, pEQUALS_EQUALS, pEXCLAMATIONMARK_EQUALS;
+%terminals pARROWUP, pLINEVERTICAL, pAND_AND, pLINEVERTICAL_LINEVERTICAL;
+
+/*
+ *       Part 4 / 6
+ * ===========================				Original Purpose
+ *
+ * ? pQUESTIONMARK
+ * : pCOLON
+ * ; pSEMICOLON
+ * ... pPOINT_POINT_POINT						ELLIPSIS
+ */
+
+%terminals pQUESTIONMARK, pCOLON, pSEMICOLON, pPOINT_POINT_POINT;
+
+/*
+ *       Part 5 / 6
+ * ===========================				Original Purpose
+ *
+ * = pEQUALS
+ * *= pSTAR_EQUALS								MUL_ASSIGN
+ * /= pSLASH_EQUALS								DIV_ASSIGN
+ * %= pPRECENT_EQUALS							MOD_ASSIGN
+ * += pPLUS_EQUALS								ADD_ASSIGN
+ * -= pMINUS_EQUALS								SUB_ASSIGN
+ * <<= pLESSER_LESSER_EQUALS					LEFT_ASSIGN
+ * >>= pGREATER_GREATER_EQUALS					RIGHT_ASSIGN
+ * &= pAND_EQUALS								AND_ASSIGN
+ * ^= pARROWUP_EQUALS							XOR_ASSIGN
+ * |= pLINEVERTICAL_EQUALS						OR_ASSIGN
+ */
+
+%terminals pEQUALS, pSTAR_EQUALS, pSLASH_EQUALS, pPRECENT_EQUALS, pPLUS_EQUALS, pPLUS_EQUALS, pMINUS_EQUALS;
+%terminals pLESSER_LESSER_EQUALS, pGREATER_GREATER_EQUALS, pAND_EQUALS, pARROWUP_EQUALS, pLINEVERTICAL_EQUALS;
+
+/*
+ *       Part 6 / 6
+ * ===========================
+ *
+ * , pCOMMA
+ * # pSHARP 				%:
+ * ## pSHARP_SHARP 			%:%:
+ */
+
+%terminals pCOMMA;
+//%terminals pSHARP, pSHARP_SHARP;
+
+/*
+ * Keywords (6.4.1)
+ */
+
+%terminals kAUTO, kBREAK, kCASE, kCHAR, kCONST, kCONTINUE, kDEFAULT, kDO, kDOUBLE, kELSE;
+%terminals kENUM, kEXTERN, kFLOAT, kFOR, kGOTO, kIF, kINLINE, kINT, kLONG, kREGISTER;
+%terminals kRESTRICT, kRETURN, kSHORT, kSIGNED, kSIZEOF, kSTATIC, kSTRUCT, kSWITCH, kTYPEDEF, kUNION;
+%terminals kUNSIGNED, kVOID, kVOLATILE, kWHILE, k_BOOL, k_COMPLEX, k_IMAGINARY;
+
+/*
+ * Identifier (6.4.2), Constants (6.4.4), String literals (6.4.5)
+ */
+
+%terminals IDENTIFIER, CONSTANT, STRING_LITERAL;
+%terminals TYPEDEF_NAME;
+
+/* *********************************************************** GRAMMAR RULES *********************************************************** */
+
+// The start symbol of the C99 standards context free grammar is goal (%goal translation_unit;).
+// We create a start separated grammar by adding a new start symbol S with exactly one rule S -> translation_unit.
+%goal S;
+
+/******************************************************************************************/
+/********************************** FINAL AST NODE TYPES **********************************/
+/******************************************************************************************/
+%typeof IDENTIFIER = "Identifier";
+%typeof TYPEDEF_NAME = "Identifier";
+%typeof CONSTANT = "Constant";
+%typeof STRING_LITERAL = "StringLiteral";
+
+%typeof storage_class_specifier = "StorageClassSpecifier";
+%typeof function_specifier = "FunctionSpecifier";
+%typeof type_qualifier = "TypeQualifier";
+
+%typeof argument_expression_list = "List";
+%typeof initializer_list = "List";
+%typeof block_item_list = "List";
+%typeof declaration_list = "java.util.List";
+%typeof translation_unit = "List";
+%typeof S = "List";
+
+%typeof expression = "Expression";
+%typeof primary_expression = "Expression";
+%typeof postfix_expression = "Expression";
+%typeof unary_expression = "Expression";
+%typeof unary_operator = "UnaryExpression";
+%typeof cast_expression = "Expression";
+%typeof multiplicative_expression = "Expression";
+%typeof additive_expression = "Expression";
+%typeof shift_expression = "Expression";
+%typeof relational_expression = "Expression";
+%typeof equality_expression = "Expression";
+%typeof and_expression = "Expression";
+%typeof exclusive_or_expression = "Expression";
+%typeof inclusive_or_expression = "Expression";
+%typeof logical_and_expression = "Expression";
+%typeof logical_or_expression = "Expression";
+%typeof conditional_expression = "Expression";
+%typeof assignment_expression = "Expression";
+%typeof assignment_operator = "AssignmentExpression";
+%typeof constant_expression = "Expression";
+
+%typeof statement = "Statement";
+%typeof labeled_statement = "Statement";
+%typeof compound_statement = "CompoundStatement";
+%typeof block_item = "Statement";
+%typeof expression_statement = "Statement";
+%typeof selection_statement = "Statement";
+%typeof iteration_statement = "Statement";
+%typeof jump_statement = "Statement";
+%typeof function_definition = "_IntermediateDeclarationCollection";
+
+%typeof declaration = "_IntermediateDeclarationCollection";
+%typeof external_declaration = "_IntermediateDeclarationCollection";
+
+%typeof initializer = "Initializer";
+
+%typeof enumerator = "EnumerationElement";
+%typeof designation = "DesignatorAccess";
+%typeof designator = "DesignatorAccess";
+%typeof designator_list = "DesignatorAccess";
+
+/******************************************************************************************/
+/****************************** INTERMEDIATE  AST NODE TYPES ******************************/
+/******************************************************************************************/
+%typeof declaration_specifiers = "List";
+%typeof init_declarator_list = "List";
+%typeof specifier_qualifier_list = "List";
+%typeof type_qualifier_list = "List";
+%typeof struct_declaration_list = "List";
+%typeof struct_declarator_list = "List";
+%typeof enumerator_list = "List";
+%typeof identifier_list = "List";
+%typeof parameter_list = "List";
+
+%typeof type_specifier = "_type_specifier";
+
+%typeof init_declarator = "_init_declarator";
+%typeof struct_or_union_specifier = "_struct_or_union_specifier";
+%typeof enum_specifier = "_enum_specifier";
+%typeof declarator = "_declarator";
+%typeof direct_declarator = "_declarator";
+%typeof abstract_declarator = "_declarator";
+%typeof direct_abstract_declarator = "_declarator";
+%typeof pointer = "_pointer";
+%typeof struct_or_union = "_struct_or_union";
+%typeof struct_declaration = "_struct_declaration";
+%typeof struct_declarator = "_struct_declarator";
+%typeof parameter_type_list = "_parameter_type_list";
+%typeof parameter_declaration = "_parameter_declaration";
+%typeof type_name = "_type_name";
+/******************************************************************************************/
+/**************************** END INTERMEDIATE  AST NODE TYPES ****************************/
+/******************************************************************************************/
+
+S = translation_unit.list
+		{:
+			return _symbol_list;
+		:}
+	;
+
+primary_expression = IDENTIFIER.id
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			Variable var = new Variable(id);
+			var.line = id.line;
+			var.column = id.column;
+			return new Symbol(var);
+		:}
+	| CONSTANT.con
+		{:
+			con.line = Symbol.getLine(_symbol_con.getStart());
+			con.column = Symbol.getColumn(_symbol_con.getStart());
+			return _symbol_con;
+		:}
+	| STRING_LITERAL.lit
+		{:
+			lit.line = Symbol.getLine(_symbol_lit.getStart());
+			lit.column = Symbol.getColumn(_symbol_lit.getStart());
+			return _symbol_lit;
+		:}
+	| pBRACKETOPENROUND expression.expr pBRACKETCLOSEROUND
+		{:
+			return _symbol_expr;
+		:}
+	;
+
+postfix_expression = primary_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| postfix_expression.designation pBRACKETOPENSQUARE.brOp expression.index pBRACKETCLOSESQUARE
+		{:
+			ArrayAccess arrayAcc = new ArrayAccess(new Opt(designation), index);
+			arrayAcc.line  = Symbol.getLine(brOp.getStart());
+			arrayAcc.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(arrayAcc);
+		:}
+	| postfix_expression.expr pBRACKETOPENROUND.brOp pBRACKETCLOSEROUND
+		{:
+			List paras = new List();
+			FunctionCall funcCall = new FunctionCall(expr, paras);
+			funcCall.line = Symbol.getLine(brOp.getStart());
+			funcCall.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(funcCall);
+		:}
+	| postfix_expression.expr pBRACKETOPENROUND.brOp argument_expression_list.paras pBRACKETCLOSEROUND
+		{:
+			FunctionCall funcCall = new FunctionCall(expr, paras);
+			funcCall.line = Symbol.getLine(brOp.getStart());
+			funcCall.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(funcCall);
+		:}
+	| postfix_expression.expr pPOINT.point IDENTIFIER.id
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			MemberAccess memberAcc = new MemberAccess(new Opt(expr), id);
+			memberAcc.line = Symbol.getLine(point.getStart());
+			memberAcc.column = Symbol.getColumn(point.getStart());
+			return new Symbol(memberAcc);
+		:}
+	| postfix_expression.expr pMINUS_GREATER.mg IDENTIFIER.id
+		{:
+			Indirection indirect = new Indirection(expr);
+			indirect.line = expr.line;
+			indirect.column = expr.column;
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			MemberAccess memberAcc = new MemberAccess(new Opt(indirect), id);
+			memberAcc.line = Symbol.getLine(mg.getStart());
+			memberAcc.column = Symbol.getColumn(mg.getStart());
+			return new Symbol(memberAcc);
+		:}
+	| postfix_expression.expr pPLUS_PLUS.pp
+		{:
+			IncrementAfter incAfter = new IncrementAfter(expr);
+			incAfter.line = Symbol.getLine(pp.getStart());
+			incAfter.column = Symbol.getColumn(pp.getStart());
+			return new Symbol(incAfter);
+		:}
+	| postfix_expression.expr pMINUS_MINUS.mm
+		{:
+			DecrementAfter decAfter = new DecrementAfter(expr);
+			decAfter.line = Symbol.getLine(mm.getStart());
+			decAfter.column = Symbol.getColumn(mm.getStart());
+			return new Symbol(decAfter);
+		:}
+	| pBRACKETOPENROUND type_name.type pBRACKETCLOSEROUND pBRACKETOPENCURLY.brOp initializer_list.initList pBRACKETCLOSECURLY
+		{:
+			CompoundInitializer init = new CompoundInitializer(initList);
+			init.line = Symbol.getLine(brOp.getStart());
+			init.column = Symbol.getColumn(brOp.getStart());
+			CompoundLiteral cLit = new CompoundLiteral(type, init);
+			cLit.line = type.line;
+			cLit.column = type.column;
+			return new Symbol(cLit);
+		:}
+	| pBRACKETOPENROUND type_name.type pBRACKETCLOSEROUND pBRACKETOPENCURLY.brOp initializer_list.initList pCOMMA pBRACKETCLOSECURLY
+		{:
+			CompoundInitializer init = new CompoundInitializer(initList);
+			init.line = Symbol.getLine(brOp.getStart());
+			init.column = Symbol.getColumn(brOp.getStart());
+			CompoundLiteral cLit = new CompoundLiteral(type, init);
+			cLit.line = type.line;
+			cLit.column = type.column;
+			return new Symbol(cLit);
+		:}
+	;
+
+argument_expression_list = assignment_expression.expr
+		{:
+			List list = new List();
+			list.add(expr);
+			list.line = expr.line;
+			list.column = expr.column;
+			return new Symbol(list);
+		:}
+	| argument_expression_list.list pCOMMA assignment_expression.expr
+		{:
+			list.add(expr);
+			return _symbol_list;
+		:}
+	;
+
+unary_expression = postfix_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| pPLUS_PLUS.pp unary_expression.expr
+		{:
+			IncrementBefore incBefore = new IncrementBefore(expr);
+			incBefore.line = Symbol.getLine(pp.getStart());
+			incBefore.column = Symbol.getColumn(pp.getStart());
+			return new Symbol(incBefore);
+		:}
+	| pMINUS_MINUS.mm unary_expression.expr
+		{:
+			DecrementBefore decBefore = new DecrementBefore(expr);
+			decBefore.line = Symbol.getLine(mm.getStart());
+			decBefore.column = Symbol.getColumn(mm.getStart());
+			return new Symbol(decBefore);
+		:}
+	| unary_operator.op cast_expression.expr
+		{:
+			op.setOperand(expr);
+			return _symbol_op;
+		:}
+	| kSIZEOF.sizeof unary_expression.expr
+		{:
+			SizeOfExpression sizeExpr = new SizeOfObject(expr);
+			sizeExpr.line = Symbol.getLine(sizeof.getStart());
+			sizeExpr.column = Symbol.getColumn(sizeof.getStart());
+			return new Symbol(sizeExpr);
+		:}
+	| kSIZEOF.sizeof pBRACKETOPENROUND type_name.type pBRACKETCLOSEROUND
+		{:
+			SizeOfExpression sizeExpr = new SizeOfType(type);
+			sizeExpr.line = Symbol.getLine(sizeof.getStart());
+			sizeExpr.column = Symbol.getColumn(sizeof.getStart());
+			return new Symbol(sizeExpr);
+		:}
+	;
+
+unary_operator = pAND.token
+		{:
+			UnaryExpression result = new AdressOf();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pSTAR.token
+		{:
+			UnaryExpression result = new Indirection();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pPLUS.token
+		{:
+			UnaryExpression result = new PlusSign();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pMINUS.token
+		{:
+			UnaryExpression result = new MinusSign();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pTILDE.token
+		{:
+			UnaryExpression result = new OneComplement();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pEXCLAMATIONMARK.token
+		{:
+			UnaryExpression result = new Negation();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+cast_expression = unary_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| pBRACKETOPENROUND.brOp type_name.type pBRACKETCLOSEROUND cast_expression.expr
+		{:
+			Cast cast = new Cast(type, expr);
+			cast.line = Symbol.getLine(brOp.getStart());
+			cast.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(cast);
+		:}
+	;
+
+multiplicative_expression = cast_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| multiplicative_expression.expr1 pSTAR.token cast_expression.expr2
+		{:
+			Expression result = new Multiplication(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| multiplicative_expression.expr1 pSLASH.token cast_expression.expr2
+		{:
+			Expression result = new Division(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| multiplicative_expression.expr1 pPRECENT.token cast_expression.expr2
+		{:
+			Expression result = new Modulo(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+additive_expression = multiplicative_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| additive_expression.expr1 pPLUS.token multiplicative_expression.expr2
+		{:
+			Expression result = new Addition(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| additive_expression.expr1 pMINUS.token multiplicative_expression.expr2
+		{:
+			Expression result = new Subtraction(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+shift_expression = additive_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| shift_expression.expr1 pLESSER_LESSER.token additive_expression.expr2
+		{:
+			Expression result = new LeftShift(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| shift_expression.expr1 pGREATER_GREATER.token additive_expression.expr2
+		{:
+			Expression result = new RightShift(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+relational_expression = shift_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| relational_expression.expr1 pLESSER.token shift_expression.expr2
+		{:
+			Expression result = new Lesser(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| relational_expression.expr1 pGREATER.token shift_expression.expr2
+		{:
+			Expression result = new Greater(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| relational_expression.expr1 pLESSER_EQUALS.token shift_expression.expr2
+		{:
+			Expression result = new LesserOrEqual(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| relational_expression.expr1 pGREATER_EQUALS.token shift_expression.expr2
+		{:
+			Expression result = new GreaterOrEqual(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+equality_expression = relational_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| equality_expression.expr1 pEQUALS_EQUALS.token relational_expression.expr2
+		{:
+			Expression result = new Equal(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| equality_expression.expr1 pEXCLAMATIONMARK_EQUALS.token relational_expression.expr2
+		{:
+			Expression result = new NotEqual(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+and_expression = equality_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| and_expression.expr1 pAND.token equality_expression.expr2
+		{:
+			Expression result = new And(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+exclusive_or_expression = and_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| exclusive_or_expression.expr1 pARROWUP.token and_expression.expr2
+		{:
+			Expression result = new ExclusiveOr(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+inclusive_or_expression = exclusive_or_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| inclusive_or_expression.expr1 pLINEVERTICAL.token exclusive_or_expression.expr2
+		{:
+			Expression result = new InclusiveOr(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+logical_and_expression = inclusive_or_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| logical_and_expression.expr1 pAND_AND.token inclusive_or_expression.expr2
+		{:
+			Expression result = new LogicalAnd(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+logical_or_expression = logical_and_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| logical_or_expression.expr1 pLINEVERTICAL_LINEVERTICAL.token logical_and_expression.expr2
+		{:
+			Expression result = new LogicalOr(expr1, expr2);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+conditional_expression = logical_or_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| logical_or_expression.expr1 pQUESTIONMARK.token expression.expr2 pCOLON conditional_expression.expr3
+		{:
+			ConditionalExpression result = new ConditionalExpression(expr1, expr2, expr3);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+assignment_expression = conditional_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| unary_expression.expr1 assignment_operator.ass assignment_expression.expr2
+		{:
+			ass.setlValue(expr1);
+			ass.setrValue(expr2);
+			return _symbol_ass;
+		:}
+	;
+
+assignment_operator = pEQUALS.token
+		{:
+			AssignmentExpression result = new NormalAssignment();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pSTAR_EQUALS.token
+		{:
+			AssignmentExpression result = new MultiplyAssignment();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pSLASH_EQUALS.token
+		{:
+			AssignmentExpression result = new DivideAssignment();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pPRECENT_EQUALS.token
+		{:
+			AssignmentExpression result = new ModuloAssignment();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pPLUS_EQUALS.token
+		{:
+			AssignmentExpression result = new AdditionAssignment();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pMINUS_EQUALS.token
+		{:
+			AssignmentExpression result = new SubtractionAssignment();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pLESSER_LESSER_EQUALS.token
+		{:
+			AssignmentExpression result = new LeftShiftAssignment();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pGREATER_GREATER_EQUALS.token
+		{:
+			AssignmentExpression result = new RightShiftAssignment();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pAND_EQUALS.token
+		{:
+			AssignmentExpression result = new AndAssignment();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pARROWUP_EQUALS.token
+		{:
+			AssignmentExpression result = new ExclusiveOrAssignment();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pLINEVERTICAL_EQUALS.token
+		{:
+			AssignmentExpression result = new InclusiveOrAssignment();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+expression = assignment_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	| expression.expr1 pCOMMA assignment_expression.expr2
+		{:
+			if (expr1 instanceof CommaExpression) {
+				((CommaExpression)expr1).addExpression(expr2);
+				return _symbol_expr1;
+			}
+			List list = new List();
+			list.add(expr1);
+			list.add(expr2);
+			Expression result = new CommaExpression(list);
+			result.line = expr1.line;
+			result.column = expr1.column;
+			return new Symbol(result);
+		:}
+	;
+
+constant_expression = conditional_expression.expr
+		{:
+			return _symbol_expr;
+		:}
+	;
+
+/******************************************************************************************/
+/************************ INTERMEDIATE TYPE  AND DECLARATION NODES ************************/
+/******************************************************************************************/
+declaration = declaration_specifiers.specifiers pSEMICOLON
+		{:
+			_declaration result =
+				new _declaration(specifiers, new List());
+			result.line = specifiers.line;
+			result.column = specifiers.column;
+			return new Symbol(result);
+		:}
+	| declaration_specifiers.specifiers init_declarator_list.init pSEMICOLON
+		{:
+			_declaration result =
+				new _declaration(specifiers, init);
+			result.line = specifiers.line;
+			result.column = specifiers.column;
+			return new Symbol(result);
+		:}
+	;
+
+declaration_specifiers = storage_class_specifier.specifier
+		{:
+			List list = new List();
+			list.add(specifier);
+			list.line = specifier.line;
+			list.column = specifier.column;
+			return new Symbol(list);
+		:}
+	| storage_class_specifier.specifier declaration_specifiers.list
+		{:
+			list.add(specifier);
+			return _symbol_list;
+		:}
+	| type_specifier.specifier
+		{:
+			List list = new List();
+			list.add(specifier);
+			list.line = specifier.line;
+			list.column = specifier.column;
+			return new Symbol(list);
+		:}
+	| type_specifier.specifier declaration_specifiers.list
+		{:
+			list.add(specifier);
+			return _symbol_list;
+		:}
+	| type_qualifier.qualifier
+		{:
+			List list = new List();
+			list.add(qualifier);
+			list.line = qualifier.line;
+			list.column = qualifier.column;
+			return new Symbol(list);
+		:}
+	| type_qualifier.qualifier declaration_specifiers.list
+		{:
+			list.add(qualifier);
+			return _symbol_list;
+		:}
+	| function_specifier.specifier
+		{:
+			List list = new List();
+			list.add(specifier);
+			list.line = specifier.line;
+			list.column = specifier.column;
+			return new Symbol(list);
+		:}
+	| function_specifier.specifier declaration_specifiers.list
+		{:
+			list.add(specifier);
+			return _symbol_list;
+		:}
+	;
+
+init_declarator_list = init_declarator.decl
+		{:
+			List list = new List();
+			list.add(decl);
+			list.line = decl.line;
+			list.column = decl.column;
+			return new Symbol(list);
+		:}
+	| init_declarator_list.list pCOMMA init_declarator.decl
+		{:
+			list.add(decl);
+			return _symbol_list;
+		:}
+	;
+
+init_declarator = declarator.decl
+		{:
+			_init_declarator result = new _init_declarator(decl, new Opt());
+			result.line = decl.line;
+			result.column = decl.column;
+			return new Symbol(result);
+		:}
+	| declarator.decl pEQUALS initializer.init
+		{:
+			_init_declarator result = new _init_declarator(decl, new Opt(init));
+			result.line = decl.line;
+			result.column = decl.column;
+			return new Symbol(result);
+		:}
+	;
+
+storage_class_specifier = kTYPEDEF.token
+		{:
+			StorageClassSpecifier result = new Typedef();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kEXTERN.token
+		{:
+			StorageClassSpecifier result = new Extern();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kSTATIC.token
+		{:
+			StorageClassSpecifier result = new Static();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kAUTO.token
+		{:
+			StorageClassSpecifier result = new Auto();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kREGISTER.token
+		{:
+			StorageClassSpecifier result = new Register();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+type_specifier = kVOID.token
+		{:
+			_atomic_type result = new _atomic_type();
+			result.setTypeName("void");
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kCHAR.token
+		{:
+			_atomic_type result = new _atomic_type();
+			result.setTypeName("char");
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kSHORT.token
+		{:
+			_atomic_type result = new _atomic_type();
+			result.setTypeName("short");
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kINT.token
+		{:
+			_atomic_type result = new _atomic_type();
+			result.setTypeName("int");
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kLONG.token
+		{:
+			_atomic_type result = new _atomic_type();
+			result.setTypeName("long");
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kFLOAT.token
+		{:
+			_atomic_type result = new _atomic_type();
+			result.setTypeName("float");
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kDOUBLE.token
+		{:
+			_atomic_type result = new _atomic_type();
+			result.setTypeName("double");
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kSIGNED.token
+		{:
+			_atomic_type result = new _atomic_type();
+			result.setTypeName("signed");
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kUNSIGNED.token
+		{:
+			_atomic_type result = new _atomic_type();
+			result.setTypeName("unsigned");
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| k_BOOL.token
+		{:
+			_atomic_type result = new _atomic_type();
+			result.setTypeName("_Bool");
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| k_COMPLEX.token
+		{:
+			_atomic_type result = new _atomic_type();
+			result.setTypeName("_Complex");
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| k_IMAGINARY.token
+		{:
+			_atomic_type result = new _atomic_type();
+			result.setTypeName("_Imaginary");
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| struct_or_union_specifier.specifier
+		{:
+			return _symbol_specifier;
+		:}
+	| enum_specifier.specifier
+		{:
+			return _symbol_specifier;
+		:}
+	| TYPEDEF_NAME.id
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			_type_specifier result = new _typedef_name(id);
+			result.line = id.line;
+			result.column = id.column;
+			return new Symbol(result);
+		:}
+	;
+
+struct_or_union_specifier = struct_or_union.su IDENTIFIER.id pBRACKETOPENCURLY struct_declaration_list.list pBRACKETCLOSECURLY
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			_struct_or_union_specifier result = new _struct_or_union_specifier(su, new Opt(id), list);
+			result.line = su.line;
+			result.column = su.column;
+			return new Symbol(result);
+		:}
+	| struct_or_union.su pBRACKETOPENCURLY struct_declaration_list.list pBRACKETCLOSECURLY
+		{:
+			_struct_or_union_specifier result = new _struct_or_union_specifier(su, new Opt(), list);
+			result.line = su.line;
+			result.column = su.column;
+			return new Symbol(result);
+		:}
+	| struct_or_union.su IDENTIFIER.id
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			_struct_or_union_specifier result = new _struct_or_union_specifier(su, new Opt(id), new List());
+			result.line = su.line;
+			result.column = su.column;
+			return new Symbol(result);
+		:}
+	;
+
+struct_or_union = kSTRUCT.token
+		{:
+			_struct_or_union result = new _struct();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kUNION.token
+		{:
+			_struct_or_union result = new _union();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+struct_declaration_list = struct_declaration.decl
+		{:
+			List list = new List();
+			list.add(decl);
+			list.line = decl.line;
+			list.column = decl.column;
+			return new Symbol(list);
+		:}
+	| struct_declaration_list.list struct_declaration.decl
+		{:
+			list.add(decl);
+			return _symbol_list;
+		:}
+	;
+
+struct_declaration = specifier_qualifier_list.list1 struct_declarator_list.list2 pSEMICOLON
+		{:
+			_struct_declaration result = new _struct_declaration(list1, list2);
+			result.line = list1.line;
+			result.column = list1.column;
+			return new Symbol(result);
+		:}
+	;
+
+specifier_qualifier_list = type_specifier.specifier specifier_qualifier_list.list
+		{:
+			list.add(specifier);
+			return _symbol_list;
+		:}
+	| type_specifier.specifier
+		{:
+			List list = new List();
+			list.add(specifier);
+			list.line = specifier.line;
+			list.column = specifier.column;
+			return new Symbol(list);
+		:}
+	| type_qualifier.qualifier specifier_qualifier_list.list
+		{:
+			list.add(qualifier);
+			return _symbol_list;
+		:}
+	| type_qualifier.qualifier
+		{:
+			List list = new List();
+			list.add(qualifier);
+			list.line = qualifier.line;
+			list.column = qualifier.column;
+			return new Symbol(list);
+		:}
+	;
+
+struct_declarator_list = struct_declarator.decl
+		{:
+			List list = new List();
+			list.add(decl);
+			list.line = decl.line;
+			list.column = decl.column;
+			return new Symbol(list);
+		:}
+	| struct_declarator_list.list pCOMMA struct_declarator.decl
+		{:
+			list.add(decl);
+			return _symbol_list;
+		:}
+	;
+
+struct_declarator = declarator.decl
+		{:
+			_struct_declarator result = new _normal_struct_declarator(decl);
+			result.line = decl.line;
+			result.column = decl.column;
+			return new Symbol(result);
+		:}
+	| pCOLON constant_expression.expr
+		{:
+			_struct_declarator result = new _bitfield_struct_declarator(new Opt(), expr);
+			result.line = expr.line;
+			result.column = expr.column;
+			return new Symbol(result);
+		:}
+	| declarator.decl pCOLON constant_expression.expr
+		{:
+			_struct_declarator result = new _bitfield_struct_declarator(new Opt(decl), expr);
+			result.line = decl.line;
+			result.column = decl.column;
+			return new Symbol(result);
+		:}
+	;
+
+enum_specifier = kENUM.token pBRACKETOPENCURLY enumerator_list.list pBRACKETCLOSECURLY
+		{:
+			_enum_specifier result = new _enum_specifier(new Opt(), list);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kENUM.token IDENTIFIER.id pBRACKETOPENCURLY enumerator_list.list pBRACKETCLOSECURLY
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			_enum_specifier result = new _enum_specifier(new Opt(id), list);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kENUM.token pBRACKETOPENCURLY enumerator_list.list pCOMMA pBRACKETCLOSECURLY
+		{:
+			_enum_specifier result = new _enum_specifier(new Opt(), list);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kENUM.token IDENTIFIER.id pBRACKETOPENCURLY enumerator_list.list pCOMMA pBRACKETCLOSECURLY
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			_enum_specifier result = new _enum_specifier(new Opt(id), list);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kENUM.token IDENTIFIER.id
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			_enum_specifier result = new _enum_specifier(new Opt(id), new List());
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+enumerator_list = enumerator.elem
+		{:
+			List list = new List();
+			list.add(elem);
+			list.line = elem.line;
+			list.column = elem.column;
+			return new Symbol(list);
+		:}
+	| enumerator_list.list pCOMMA enumerator.elem
+		{:
+			list.add(elem);
+			return _symbol_list;
+		:}
+	;
+
+enumerator = IDENTIFIER.id
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			EnumerationElement result = new EnumerationElement(id, new Opt());
+			result.line = Symbol.getLine(_symbol_id.getStart());
+			result.column = Symbol.getColumn(_symbol_id.getStart());
+			return new Symbol(result);
+		:}
+	| IDENTIFIER.id pEQUALS constant_expression.expr
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			EnumerationElement result = new EnumerationElement(id, new Opt(expr));
+			result.line = Symbol.getLine(_symbol_id.getStart());
+			result.column = Symbol.getColumn(_symbol_id.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+type_qualifier = kCONST.token
+		{:	TypeQualifier result = new Const();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kRESTRICT.token
+		{:
+			TypeQualifier result = new Restrict();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kVOLATILE.token
+		{:
+			TypeQualifier result = new Volatile();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+function_specifier = kINLINE.token
+		{:
+			FunctionSpecifier result = new Inline();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+declarator = pointer.point direct_declarator.decl
+		{:
+			_declarator result = new _pointer_declarator(point, new Opt(decl));
+			result.line = point.line;
+			result.column = point.column;
+			return new Symbol(result);
+		:}
+	| direct_declarator.decl
+		{:
+			return _symbol_decl;
+		:}
+	;
+
+
+direct_declarator = IDENTIFIER.id
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			_declarator result = new _simple_declarator(id);
+			result.line = Symbol.getLine(_symbol_id.getStart());
+			result.column = Symbol.getColumn(_symbol_id.getStart());
+			return new Symbol(result);
+		:}
+	| pBRACKETOPENROUND declarator.decl pBRACKETCLOSEROUND
+		{:
+			return _symbol_decl;
+		:}
+	| direct_declarator.ddecl pBRACKETOPENSQUARE type_qualifier_list.list assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			_declarator result = new _array_declarator(new Opt(ddecl), list, new Opt(expr));
+			result.line = ddecl.line;
+			result.column = ddecl.column;
+			return new Symbol(result);
+		:}
+	| direct_declarator.ddecl pBRACKETOPENSQUARE type_qualifier_list.list pBRACKETCLOSESQUARE
+		{:
+			_declarator result = new _array_declarator(new Opt(ddecl), list, new Opt());
+			result.line = ddecl.line;
+			result.column = ddecl.column;
+			return new Symbol(result);
+		:}
+	| direct_declarator.ddecl pBRACKETOPENSQUARE assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			_declarator result = new _array_declarator(new Opt(ddecl), new List(), new Opt(expr));
+			result.line = ddecl.line;
+			result.column = ddecl.column;
+			return new Symbol(result);
+		:}
+	| direct_declarator.ddecl pBRACKETOPENSQUARE kSTATIC type_qualifier_list.list assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"The 'static' keyword for arrays is not supported (array[static]).");
+		:}
+	| direct_declarator.ddecl pBRACKETOPENSQUARE type_qualifier_list.list kSTATIC assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"The 'static' keyword for arrays is not supported (array[static]).");
+		:}
+	| direct_declarator.ddecl pBRACKETOPENSQUARE type_qualifier_list.list pSTAR pBRACKETCLOSESQUARE
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"Variable length arrays are not supported (array[*]).");
+		:}
+	| direct_declarator.ddecl pBRACKETOPENSQUARE pSTAR pBRACKETCLOSESQUARE
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"Variable length arrays are not supported (array[*]).");
+		:}
+	| direct_declarator.ddecl pBRACKETOPENSQUARE pBRACKETCLOSESQUARE
+		{:
+			_declarator result = new _array_declarator(new Opt(ddecl), new List(), new Opt());
+			result.line = ddecl.line;
+			result.column = ddecl.column;
+			return new Symbol(result);
+		:}
+	| direct_declarator.ddecl pBRACKETOPENROUND parameter_type_list.list pBRACKETCLOSEROUND
+		{:
+			_declarator result = new _function_declarator(new Opt(ddecl), new Opt(list));
+			result.line = ddecl.line;
+			result.column = ddecl.column;
+			return new Symbol(result);
+		:}
+	| direct_declarator.ddecl pBRACKETOPENROUND identifier_list.list pBRACKETCLOSEROUND
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"Old function style definitions are not supported.");
+			/*
+			_declarator result = new _function_declarator_old_style(ddecl, list);
+			result.line = ddecl.line;
+			result.column = ddecl.column;
+			return new Symbol(result);
+			*/
+		:}
+	| direct_declarator.ddecl pBRACKETOPENROUND pBRACKETCLOSEROUND
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"Old function style definitions are not supported.");
+			/*
+			_declarator result = new _function_declarator_old_style(ddecl, new List());
+			result.line = ddecl.line;
+			result.column = ddecl.column;
+			return new Symbol(result);
+			*/
+		:}
+	;
+
+pointer = pSTAR.token
+		{:
+			_pointer result = new _pointer(new List(), new Opt());
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pSTAR.token type_qualifier_list.list
+		{:
+			_pointer result = new _pointer(list, new Opt());
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pSTAR.token pointer.point
+		{:
+			_pointer result = new _pointer(new List(), new Opt(point));
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pSTAR.token type_qualifier_list.list pointer.point
+		{:
+			_pointer result = new _pointer(list, new Opt(point));
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+type_qualifier_list = type_qualifier.tq
+		{:
+			List list = new List();
+			list.add(tq);
+			list.line = tq.line;
+			list.column = tq.column;
+			return new Symbol(list);
+		:}
+	| type_qualifier_list.list type_qualifier.tq
+		{:
+			list.add(tq);
+			return _symbol_list;
+		:}
+	;
+
+parameter_type_list = parameter_list.list
+		{:
+			_parameter_type_list result = new _parameter_type_list(list, false);
+			result.line = list.line;
+			result.column = list.column;
+			return new Symbol(result);
+		:}
+	| parameter_list.list pCOMMA pPOINT_POINT_POINT
+		{:
+			_parameter_type_list result = new _parameter_type_list(list, true);
+			result.line = list.line;
+			result.column = list.column;
+			return new Symbol(result);
+		:}
+	;
+
+parameter_list = parameter_declaration.decl
+		{:
+			List list = new List();
+			list.add(decl);
+			list.line = decl.line;
+			list.column = decl.column;
+			return new Symbol(list);
+		:}
+	| parameter_list.list pCOMMA parameter_declaration.decl
+		{:
+			list.add(decl);
+			return _symbol_list;
+		:}
+	;
+
+parameter_declaration = declaration_specifiers.ds declarator.decl
+		{:
+			_parameter_declaration result = new _parameter_declaration(ds, new Opt(decl));
+			result.line = ds.line;
+			result.column = ds.column;
+			return new Symbol(result);
+		:}
+	| declaration_specifiers.ds abstract_declarator.adecl
+		{:
+			_parameter_declaration result = new _parameter_declaration(ds, new Opt(adecl));
+			result.line = ds.line;
+			result.column = ds.column;
+			return new Symbol(result);
+		:}
+	| declaration_specifiers.ds
+		{:
+			_parameter_declaration result = new _parameter_declaration(ds, new Opt());
+			result.line = ds.line;
+			result.column = ds.column;
+			return new Symbol(result);
+		:}
+	;
+
+identifier_list = IDENTIFIER.id
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			List list = new List();
+			list.add(id);
+			list.line = id.line;
+			list.column = id.column;
+			return new Symbol(list);
+		:}
+	| identifier_list.list pCOMMA IDENTIFIER.id
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			list.add(id);
+			return _symbol_list;
+		:}
+	;
+
+type_name = specifier_qualifier_list.list
+		{:
+			_type_name result =
+				new _type_name(list, new Opt());
+			result.line = list.line;
+			result.column = list.column;
+			return new Symbol(result);
+		:}
+	| specifier_qualifier_list.list abstract_declarator.adecl
+		{:
+			_type_name result =
+				new _type_name(list, new Opt(adecl));
+			result.line = list.line;
+			result.column = list.column;
+			return new Symbol(result);
+		:}
+	;
+
+abstract_declarator = pointer.point
+		{:
+			_declarator result = new _pointer_declarator(point, new Opt());
+			result.line = point.line;
+			result.column = point.column;
+			return new Symbol(result);
+		:}
+	| direct_abstract_declarator.dadecl
+		{:
+			return _symbol_dadecl;
+		:}
+	| pointer.point direct_abstract_declarator.dadecl
+		{:
+			_declarator result = new _pointer_declarator(point, new Opt(dadecl));
+			result.line = point.line;
+			result.column = point.column;
+			return new Symbol(result);
+		:}
+	;
+
+direct_abstract_declarator = pBRACKETOPENROUND abstract_declarator.adecl pBRACKETCLOSEROUND
+		{:
+			return _symbol_adecl;
+		:}
+	| pBRACKETOPENSQUARE.brOp pBRACKETCLOSESQUARE
+		{:
+			_declarator result = new _array_declarator(new Opt(), new List(), new Opt());
+			result.line = Symbol.getLine(brOp.getStart());
+			result.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(result);
+		:}
+	| pBRACKETOPENSQUARE.brOp type_qualifier_list.list pBRACKETCLOSESQUARE
+		{:
+			_declarator result = new _array_declarator(new Opt(), list, new Opt());
+			result.line = Symbol.getLine(brOp.getStart());
+			result.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(result);
+		:}
+	| pBRACKETOPENSQUARE.brOp assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			_declarator result = new _array_declarator(new Opt(), new List(), new Opt(expr));
+			result.line = Symbol.getLine(brOp.getStart());
+			result.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(result);
+		:}
+	| pBRACKETOPENSQUARE.brOp type_qualifier_list.list assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			_declarator result = new _array_declarator(new Opt(), list, new Opt(expr));
+			result.line = Symbol.getLine(brOp.getStart());
+			result.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(result);
+		:}
+	| direct_abstract_declarator.dadecl pBRACKETOPENSQUARE pBRACKETCLOSESQUARE
+		{:
+			_declarator result = new _array_declarator(new Opt(dadecl), new List(), new Opt());
+			result.line = dadecl.line;
+			result.column = dadecl.column;
+			return new Symbol(result);
+		:}
+	| direct_abstract_declarator.dadecl pBRACKETOPENSQUARE type_qualifier_list.list pBRACKETCLOSESQUARE
+		{:
+			_declarator result = new _array_declarator(new Opt(dadecl), list, new Opt());
+			result.line = dadecl.line;
+			result.column = dadecl.column;
+			return new Symbol(result);
+		:}
+	| direct_abstract_declarator.dadecl pBRACKETOPENSQUARE assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			_declarator result = new _array_declarator(new Opt(dadecl), new List(), new Opt(expr));
+			result.line = dadecl.line;
+			result.column = dadecl.column;
+			return new Symbol(result);
+		:}
+	| direct_abstract_declarator.dadecl pBRACKETOPENSQUARE type_qualifier_list.list assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			_declarator result = new _array_declarator(new Opt(dadecl), list, new Opt(expr));
+			result.line = dadecl.line;
+			result.column = dadecl.column;
+			return new Symbol(result);
+		:}
+	| pBRACKETOPENSQUARE.brOp kSTATIC assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"The 'static' keyword for arrays is not supported (array[static]).");
+		:}
+	| pBRACKETOPENSQUARE.brOp kSTATIC type_qualifier_list.list assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"The 'static' keyword for arrays is not supported (array[static]).");
+		:}
+	| pBRACKETOPENSQUARE.brOp type_qualifier_list.list kSTATIC assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"The 'static' keyword for arrays is not supported (array[static]).");
+		:}
+	| direct_abstract_declarator.dadecl pBRACKETOPENSQUARE.brOp kSTATIC assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"The 'static' keyword for arrays is not supported (array[static]).");
+		:}
+	| direct_abstract_declarator.dadecl pBRACKETOPENSQUARE.brOp kSTATIC type_qualifier_list.list assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"The 'static' keyword for arrays is not supported (array[static]).");
+		:}
+	| direct_abstract_declarator.dadecl pBRACKETOPENSQUARE.brOp type_qualifier_list.list kSTATIC assignment_expression.expr pBRACKETCLOSESQUARE
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"The 'static' keyword for arrays is not supported (array[static]).");
+		:}
+	| pBRACKETOPENSQUARE pSTAR pBRACKETCLOSESQUARE
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"Variable length arrays are not supported (array[*]).");
+		:}
+	| direct_abstract_declarator.dadecl pBRACKETOPENSQUARE pSTAR pBRACKETCLOSESQUARE
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"Variable length arrays are not supported (array[*]).");
+		:}
+	| pBRACKETOPENROUND.brOp pBRACKETCLOSEROUND
+		{:
+			_declarator result = new _function_declarator(new Opt(), new Opt());
+			result.line = Symbol.getLine(brOp.getStart());
+			result.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(result);
+		:}
+	| pBRACKETOPENROUND.brOp parameter_type_list.list pBRACKETCLOSEROUND
+		{:
+			_declarator result = new _function_declarator(new Opt(), new Opt(list));
+			result.line = Symbol.getLine(brOp.getStart());
+			result.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(result);
+		:}
+	| direct_abstract_declarator.dadecl pBRACKETOPENROUND pBRACKETCLOSEROUND
+		{:
+			_declarator result = new _function_declarator(new Opt(dadecl), new Opt());
+			result.line = dadecl.line;
+			result.column = dadecl.column;
+			return new Symbol(result);
+		:}
+	| direct_abstract_declarator.dadecl pBRACKETOPENROUND parameter_type_list.list pBRACKETCLOSEROUND
+		{:
+			_declarator result = new _function_declarator(new Opt(dadecl), new Opt(list));
+			result.line = dadecl.line;
+			result.column = dadecl.column;
+			return new Symbol(result);
+		:}
+	;
+/******************************************************************************************/
+/********************** END INTERMEDIATE TYPE  AND DECLARATION NODES **********************/
+/******************************************************************************************/
+
+initializer = assignment_expression.expr
+		{:
+			AtomicInitializer result = new AtomicInitializer(expr);
+			result.line = expr.line;
+			result.column = expr.column;
+			return new Symbol(result);
+		:}
+	| pBRACKETOPENCURLY.brOp initializer_list.list pBRACKETCLOSECURLY
+		{:
+			CompoundInitializer result = new CompoundInitializer(list);
+			result.line = Symbol.getLine(brOp.getStart());
+			result.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(result);
+		:}
+	| pBRACKETOPENCURLY.brOp initializer_list.list pCOMMA pBRACKETCLOSECURLY
+		{:
+			CompoundInitializer result = new CompoundInitializer(list);
+			result.line = Symbol.getLine(brOp.getStart());
+			result.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+initializer_list = initializer.init
+		{:
+			List list = new List();
+			list.line = init.line;
+			list.column = init.column;
+			InitializerElement elem = null;
+			if (init instanceof AtomicInitializer) {
+				Expression value = ((AtomicInitializer)init).getValue();
+				((AtomicInitializer)init).setValue(null);
+				elem = new ElementInitialization(new Opt(), value);
+				list.add(elem);
+			} else {
+				elem = new InnerInitialization(new Opt(), (CompoundInitializer)init);
+				list.add(elem);
+			}
+			elem.line = init.line;
+			elem.column = init.column;
+			return new Symbol(list);
+		:}
+	| designation.des initializer.init
+		{:
+			List list = new List();
+			list.line = init.line;
+			list.column = init.column;
+			InitializerElement elem = null;
+			if (init instanceof AtomicInitializer) {
+				Expression value = ((AtomicInitializer)init).getValue();
+				((AtomicInitializer)init).setValue(null);
+				elem = new ElementInitialization(new Opt(des), value);
+				list.add(elem);
+			} else {
+				elem = new InnerInitialization(new Opt(des), (CompoundInitializer)init);
+				list.add(elem);
+			}
+			elem.line = init.line;
+			elem.column = init.column;
+			return new Symbol(list);
+		:}
+	| initializer_list.list pCOMMA initializer.init
+		{:
+			InitializerElement elem = null;
+			if (init instanceof AtomicInitializer) {
+				Expression value = ((AtomicInitializer)init).getValue();
+				((AtomicInitializer)init).setValue(null);
+				elem = new ElementInitialization(new Opt(), value);
+				list.add(elem);
+			} else {
+				elem = new InnerInitialization(new Opt(), (CompoundInitializer)init);
+				list.add(elem);
+			}
+			elem.line = init.line;
+			elem.column = init.column;
+			return _symbol_list;
+		:}
+	| initializer_list.list pCOMMA designation.des initializer.init
+		{:
+			InitializerElement elem = null;
+			if (init instanceof AtomicInitializer) {
+				Expression value = ((AtomicInitializer)init).getValue();
+				((AtomicInitializer)init).setValue(null);
+				elem = new ElementInitialization(new Opt(des), value);
+				list.add(elem);
+			} else {
+				elem = new InnerInitialization(new Opt(des), (CompoundInitializer)init);
+				list.add(elem);
+			}
+			elem.line = init.line;
+			elem.column = init.column;
+			return _symbol_list;
+		:}
+	;
+
+designation = designator_list.des pEQUALS
+		{:
+			return _symbol_des;
+		:}
+	;
+
+designator_list = designator.des
+		{:
+			return _symbol_des;
+		:}
+	| designator_list.des1 designator.des2
+		{:
+			des2.setDesignation(des1);
+			return _symbol_des2;
+		:}
+	;
+
+designator = pBRACKETOPENSQUARE.token constant_expression.expr pBRACKETCLOSESQUARE
+		{:
+			ArrayAccess result = new ArrayAccess(new Opt(), expr);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| pPOINT.token IDENTIFIER.id
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			MemberAccess result = new MemberAccess(new Opt(), id);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+statement = labeled_statement.stmt
+		{:
+			return _symbol_stmt;
+		:}
+	| compound_statement.stmt
+		{:
+			return _symbol_stmt;
+		:}
+	| expression_statement.stmt
+		{:
+			return _symbol_stmt;
+		:}
+	| selection_statement.stmt
+		{:
+			return _symbol_stmt;
+		:}
+	| iteration_statement.stmt
+		{:
+			return _symbol_stmt;
+		:}
+	| jump_statement.stmt
+		{:
+			return _symbol_stmt;
+		:}
+	;
+
+labeled_statement = IDENTIFIER.id pCOLON.token statement.stmt
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			LabeledStatement result = new ExplicitLabeledStatement(stmt, id);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kCASE.token constant_expression.expr pCOLON statement.stmt
+		{:
+			LabeledStatement result = new CaseLabel(stmt, expr);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kDEFAULT.token pCOLON statement.stmt
+		{:
+			LabeledStatement result = new DefaultLabel(stmt);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+compound_statement = pBRACKETOPENCURLY.brOp pBRACKETCLOSECURLY
+		{:
+			CompoundStatement result = new CompoundStatement(new List());
+			result.line = Symbol.getLine(brOp.getStart());
+			result.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(result);
+		:}
+	| pBRACKETOPENCURLY.brOp block_item_list.list pBRACKETCLOSECURLY
+		{:
+			CompoundStatement result = new CompoundStatement(list);
+			result.line = Symbol.getLine(brOp.getStart());
+			result.column = Symbol.getColumn(brOp.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+block_item_list = block_item.stmt
+		{:
+			List list = new List();
+			list.add(stmt);
+			list.line = stmt.line;
+			list.column = stmt.column;
+			return new Symbol(list);
+		:}
+	| block_item_list.list block_item.stmt
+		{:
+			list.add(stmt);
+			return _symbol_list;
+		:}
+	;
+
+block_item = declaration.stmt
+		{:
+			return _symbol_stmt;
+		:}
+	| statement.stmt
+		{:
+			return _symbol_stmt;
+		:}
+	;
+
+expression_statement = pSEMICOLON.token
+		{:
+			EmptyStatement result = new EmptyStatement();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| expression.expr pSEMICOLON
+		{:
+			ExpressionStatement result = new ExpressionStatement(expr);
+			result.line = expr.line;
+			result.column = expr.column;
+			return new Symbol(result);
+		:}
+	;
+
+selection_statement = kIF.token pBRACKETOPENROUND expression.expr pBRACKETCLOSEROUND statement.stmt
+		{:
+			IfStatement result = new IfStatement(expr, stmt, new Opt());
+			result.line = expr.line;
+			result.column = expr.column;
+			return new Symbol(result);
+		:}
+	| kIF.token pBRACKETOPENROUND expression.expr pBRACKETCLOSEROUND statement.stmt1 kELSE statement.stmt2
+		{:
+			IfStatement result = new IfStatement(expr, stmt1, new Opt(stmt2));
+			result.line = expr.line;
+			result.column = expr.column;
+			return new Symbol(result);
+		:}
+	| kSWITCH.token pBRACKETOPENROUND expression.expr pBRACKETCLOSEROUND statement.stmt
+		{:
+			SwitchStatement result = new SwitchStatement(expr, stmt);
+			result.line = expr.line;
+			result.column = expr.column;
+			return new Symbol(result);
+		:}
+	;
+
+iteration_statement = kWHILE.token pBRACKETOPENROUND expression.expr pBRACKETCLOSEROUND statement.stmt
+		{:
+			WhileStatement result = new WhileStatement(expr, stmt);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kDO.token statement.stmt kWHILE pBRACKETOPENROUND expression.expr pBRACKETCLOSEROUND pSEMICOLON
+		{:
+			DoWhileStatement result = new DoWhileStatement(expr, stmt);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kFOR.token pBRACKETOPENROUND expression_statement.expr1 expression_statement.expr2 pBRACKETCLOSEROUND statement.body
+		{:
+			Opt init;
+			if (expr1 instanceof ExpressionStatement)
+				init = new Opt(((ExpressionStatement)expr1).getExpression());
+			else init = new Opt();
+			
+			Expression cond;
+			if (expr2 instanceof ExpressionStatement)
+				cond = ((ExpressionStatement)expr2).getExpression();
+			else {
+				cond = new IntegerConstant(
+						"1",
+						"1",
+						new NumeralSystemDecimal(),
+						new PrimitiveType(new List(), jastaddc.semantics.PrimitiveTypes._signed_int));
+				cond.line = expr1.line;
+				cond.column = expr1.column;
+			}
+			
+			Opt iter = new Opt();
+			
+			ForStatement result = new ForStatement(cond, body, init, iter);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kFOR.token pBRACKETOPENROUND expression_statement.expr1 expression_statement.expr2 expression.expr3 pBRACKETCLOSEROUND statement.body
+		{:
+			Opt init;
+			if (expr1 instanceof ExpressionStatement)
+				init = new Opt(((ExpressionStatement)expr1).getExpression());
+			else init = new Opt();
+			
+			Expression cond;
+			if (expr2 instanceof ExpressionStatement)
+				cond = ((ExpressionStatement)expr2).getExpression();
+			else {
+				cond = new IntegerConstant(
+						"1",
+						"1",
+						new NumeralSystemDecimal(),
+						new PrimitiveType(new List(), jastaddc.semantics.PrimitiveTypes._signed_int));
+				cond.line = expr1.line;
+				cond.column = expr1.column;
+			}
+			
+			Opt iter = new Opt(expr3);
+			
+			ForStatement result = new ForStatement(cond, body, init, iter);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kFOR.token pBRACKETOPENROUND declaration.init expression_statement.expr2 pBRACKETCLOSEROUND statement.body
+		{:
+			Expression cond;
+			if (expr2 instanceof ExpressionStatement)
+				cond = ((ExpressionStatement)expr2).getExpression();
+			else {
+				cond = new IntegerConstant(
+						"1",
+						"1",
+						new NumeralSystemDecimal(),
+						new PrimitiveType(new List(), jastaddc.semantics.PrimitiveTypes._signed_int));
+				cond.line = init.line;
+				cond.column = init.column;
+			}
+						
+			Opt iter = new Opt();
+			
+			ForStatement_Decl result = new ForStatement_Decl(cond, body, new Opt(init), iter);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kFOR.token pBRACKETOPENROUND declaration.init expression_statement.expr2 expression.expr3 pBRACKETCLOSEROUND statement.body
+		{:
+			Expression cond;
+			if (expr2 instanceof ExpressionStatement)
+				cond = ((ExpressionStatement)expr2).getExpression();
+			else {
+				cond = new IntegerConstant(
+						"1",
+						"1",
+						new NumeralSystemDecimal(),
+						new PrimitiveType(new List(), jastaddc.semantics.PrimitiveTypes._signed_int));
+				cond.line = init.line;
+				cond.column = init.column;
+			}
+						
+			Opt iter = new Opt(expr3);
+			
+			ForStatement_Decl result = new ForStatement_Decl(cond, body, new Opt(init), iter);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+jump_statement = kGOTO.token IDENTIFIER.id pSEMICOLON
+		{:
+			id.line = Symbol.getLine(_symbol_id.getStart());
+			id.column = Symbol.getColumn(_symbol_id.getStart());
+			GotoJump result = new GotoJump(id);
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kCONTINUE.token pSEMICOLON
+		{:
+			ContinueJump result = new ContinueJump();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kBREAK.token pSEMICOLON
+		{:
+			BreakJump result = new BreakJump();
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kRETURN.token pSEMICOLON
+		{:
+			ReturnJump result = new ReturnJump(new Opt());
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	| kRETURN.token expression.expr pSEMICOLON
+		{:
+			ReturnJump result = new ReturnJump(new Opt(expr));
+			result.line = Symbol.getLine(token.getStart());
+			result.column = Symbol.getColumn(token.getStart());
+			return new Symbol(result);
+		:}
+	;
+
+translation_unit = external_declaration.decl
+		{:
+			List list = new List();
+			list.add(decl);
+			list.line = decl.line;
+			list.column = decl.column;
+			return new Symbol(list);
+		:}
+	| translation_unit.list external_declaration.decl
+		{:
+			list.add(decl);
+			return _symbol_list;
+		:}
+	;
+
+external_declaration = function_definition.func
+		{:
+			return _symbol_func;
+		:}
+	| declaration.decl
+		{:
+			return _symbol_decl;
+		:}
+	;
+
+function_definition = declaration_specifiers.spec declarator.decl declaration_list.list compound_statement.stmt
+		{:
+			throw new java.lang.UnsupportedOperationException(
+				"Old function style definitions are not supported.");
+		:}
+	| declaration_specifiers.spec declarator.decl compound_statement.stmt
+		{:
+			_function_definition result =
+				new _function_definition(
+					spec,
+					decl,
+					stmt);
+			result.line = spec.line;
+			result.column = spec.column;
+			return new Symbol(result);
+		:}
+	;
+
+declaration_list = declaration.decl
+		{:
+			java.util.List list = new java.util.LinkedList<Declaration>();
+			list.add(decl);
+			return new Symbol(list);
+		:}
+	| declaration_list.list declaration.decl
+		{:
+			list.add(decl);
+			return _symbol_list;
+		:}
+	;

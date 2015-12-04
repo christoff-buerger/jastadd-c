@@ -1,0 +1,15 @@
+/**
+ * @author C. Bürger
+ */
+aspect ComponentNames {
+	eq StructuredType.LookUpMember(String memberToFind) {
+		if (memberToFind == null)
+			return null;
+		for (int i = 0; i < getNumElement(); i++) {
+			UnionOrStructureElement elem = getElement(i);
+			if (elem.Name().equals(memberToFind))
+				return elem;
+		}
+		return null;
+	}
+}

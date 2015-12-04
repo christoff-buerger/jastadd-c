@@ -1,0 +1,41 @@
+/**
+ * @author C. Bürger
+ */
+aspect ConstraintVerification {
+	eq ASTNode.IsCorrect() {
+		boolean result = true;
+		
+		if (!IsCorrectLocal())
+			result = false;
+		
+		for (int i = 0; i < getNumChild(); i++) {
+			if (!getChild(i).IsCorrect())
+				result = false;
+		}
+		
+		return result;
+	}
+	eq ASTNode.IsCorrectLocal() {
+		// If the ASTNode is an intermediate node, the compiler implementation is erroneus:
+		String[] name = this.getClass().getName().split("\\.");
+		if (name[name.length - 1].startsWith("_"))
+			throw new jastaddc.semantics.ConcreteToASTFailure(this);
+		// If the AST is broken the compiler implementation is erroneus:
+		for (int i = 0; i < getNumChild(); i++) {
+			if (getChild(i) == null)
+				throw new jastaddc.semantics.SemanticalFailure("IMPLEMENTATION ERROR: AST node has 'null' child ["+
+						"\n\tNode: "+ this +
+						"\n\tChild number: "+ i +
+						"\n]");
+			if (getChild(i).getParent() != this)
+				throw new jastaddc.semantics.SemanticalFailure("IMPLEMENTATION ERROR: AST node has child but is not parent ["+
+						"\n\tNode: "+ this.getClass().getName() +
+						"\n\tChild number: "+ i +
+						"\n\tChild: "+ getChild(i) +
+						"\n\tChild's parent: "+ getChild(i).getParent() +
+						"\n]");
+		}
+		// Otherwise everything is fine if there are no errors added:
+		return collectAllErrorsOfNode().size() == 0;
+	}
+}

@@ -1,0 +1,53 @@
+<!-- Ant build script to generate the JastAddC AST classes source code.
+     
+     @author C. Bürger
+-->
+
+<!-- Targets for working from Eclipse:
+       gen			- generates the AST java files
+       cleanGen		- removes all generated files
+ -->
+
+<project name="JastAddC_AST" default="gen">
+	<path id="_basedir">
+		<pathelement location="./../.."/>
+	</path>
+	<property name="_basedir" refid="_basedir"/>
+	
+	<taskdef
+		classname="jastadd.JastAddTask"
+		name="jastadd"
+		classpath="${_basedir}/sources/libraries/jastadd2.jar"
+	/>
+	
+	<target name="gen">
+		<taskdef
+			classname="JFlex.anttask.JFlexTask"
+			name="jflex"
+			classpath="${_basedir}/sources/libraries/jflex.jar"
+		/>
+		<jflex
+			file="${_basedir}/specifications/semantical/CompilerCore/ConcreteToASTMapping/PrimitiveTypesLexer.jflex"
+			destdir="${_basedir}/implementation"
+			nobak="on"
+			verbose="on"
+		/>
+		<jastadd package="jastaddc.semantics.ast" rewrite="true" outdir="${_basedir}/implementation">
+			<fileset dir="${_basedir}">
+				<include name="specifications/semantical/**/*.ast"/>
+				<include name="specifications/semantical/**/*.jrag"/>
+				<include name="specifications/semantical/**/*.jadd"/>
+				<include name="testing/jastaddc/tests/syntactical/**/*.jrag"/>
+			</fileset>
+		</jastadd>
+	</target>
+	
+	<target name="cleanGen">
+		<delete>
+			<fileset
+				dir="${_basedir}/implementation/jastaddc/semantics/ast"
+				includes="**/*.java"
+			/>
+		</delete>
+	</target>
+</project>

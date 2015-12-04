@@ -1,0 +1,1 @@
+if(closeTogether)itIs(going,forward,and,*forward);else{all=t-'h'+e+time;as=We(like[]);}/*to see if*/thereIs[]={a,wrong};token="return here";

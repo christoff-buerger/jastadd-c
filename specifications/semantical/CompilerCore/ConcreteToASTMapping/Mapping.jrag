@@ -1,0 +1,25 @@
+/**
+ * This aspect specifies all the rewrites needed to map the concrete
+ * to the abstract syntax.
+ * 
+ * @author C. Bürger
+ */
+aspect Mapping {
+	rewrite _declaration {
+		to _IntermediateDeclarationCollection {
+			return DeclarationCollection();
+		}
+	}
+	
+	rewrite _function_definition {
+		to _IntermediateDeclarationCollection {
+			return DeclarationCollection();
+		}
+	}
+	
+	rewrite _type_name {
+		to _IntermediateType {
+			return Type();
+		}
+	}
+}

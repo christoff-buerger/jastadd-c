@@ -1,0 +1,155 @@
+/**
+ * @author C. Bürger
+ */
+aspect ContextInformationAccess {
+	/**
+	 * Provide information about pointers:
+	 */
+	eq Pointer.IsFunctionPointer() =
+		getType().RetrieveFinalNode() instanceof FunctionType;
+	eq Pointer.IsVoidPointer() = 
+		getType().RetrieveFinalNode() instanceof PrimitiveType ?
+				((PrimitiveType)getType().RetrieveFinalNode()).getType() == jastaddc.semantics.PrimitiveTypes._void :
+				false;
+	
+	/**
+	 * Access support for certain ancestor nodes providing context informations:
+	 */
+	eq Enumeration.getEnumerationElement(int index).EnumerationContainingElement() = this;
+	eq StructuredType.getElement(int index).StructuredTypeContainingMember() = this;
+	eq ASTNode.getChild(int index).IsPartOfFunctionDeclaration() = null;
+	eq Declaration.getType().IsPartOfFunctionDeclaration() = IsFunctionDeclaration() ? this : null;
+	
+	eq FunctionType.getParameter(int index).IsParameterDeclaration() = this;
+	eq TranslationUnit.getDeclaration(int index).IsParameterDeclaration() = null;
+	eq FunctionDefinitionInitializer.getBody().IsParameterDeclaration() = null;
+	
+	eq SwitchStatement.getBody().FindEnclosingSwitchStatement() = this;
+	eq TranslationUnit.getDeclaration().FindEnclosingSwitchStatement() = null;
+	eq FunctionDefinitionInitializer.getBody().FindEnclosingSwitchStatement() = null;
+	
+	eq WhileStatement.getBody().FindEnclosingLoopStatement() = this;
+	eq DoWhileStatement.getBody().FindEnclosingLoopStatement() = this;
+	eq ForStatement.getBody().FindEnclosingLoopStatement() = this;
+	eq ForStatement_Decl.getBody().FindEnclosingLoopStatement() = this;
+	eq TranslationUnit.getDeclaration().FindEnclosingLoopStatement() = null;
+	eq FunctionDefinitionInitializer.getBody().FindEnclosingLoopStatement() = null;
+	
+	eq FunctionDefinitionInitializer.getBody().FindEnclosingFunctionDefinition() = this;
+	eq TranslationUnit.getDeclaration().FindEnclosingFunctionDefinition() = null;
+	
+	/**
+	 * Access support for remote nodes in the AST, this node depends on, but
+	 * the computation for the reference may fail because semantic constraints are
+	 * not met.
+	 */
+	
+	// One of the ArrayAccess expressions shall have type "pointer to object type",
+	// the other expression shall have integer type [6.5.2.1:1] p.70:
+	eq ArrayAccess.DesignationExpression() =
+		hasDesignation() && getDesignation().Type().RetrieveFinalNode() instanceof Pointer &&
+		!((Pointer)getDesignation().Type().RetrieveFinalNode()).IsFunctionPointer() &&
+		!((Pointer)getDesignation().Type().RetrieveFinalNode()).IsVoidPointer() ?
+				(getDesignation2().Type().RetrieveFinalNode() instanceof Pointer &&
+				!((Pointer)getDesignation2().Type().RetrieveFinalNode()).IsFunctionPointer() &&
+				!((Pointer)getDesignation2().Type().RetrieveFinalNode()).IsVoidPointer() ?
+						(Expression)ErrorBuilder().ConstructErrorNode(Expression.class) :
+						getDesignation()) :
+				(getDesignation2().Type().RetrieveFinalNode() instanceof Pointer &&
+				!((Pointer)getDesignation2().Type().RetrieveFinalNode()).IsFunctionPointer() &&
+				!((Pointer)getDesignation2().Type().RetrieveFinalNode()).IsVoidPointer() ?
+						getDesignation2() :
+						(Expression)ErrorBuilder().ConstructErrorNode(Expression.class));
+	
+	eq ArrayAccess.IndexExpression() =
+		hasDesignation() && getDesignation().Type().RetrieveFinalNode().IsIntegerType() ?
+				(getDesignation2().Type().RetrieveFinalNode().IsIntegerType() ?
+						(Expression)ErrorBuilder().ConstructErrorNode(Expression.class) :
+						getDesignation()) :
+				(getDesignation2().Type().RetrieveFinalNode().IsIntegerType() ?
+						getDesignation2() :
+						(Expression)ErrorBuilder().ConstructErrorNode(Expression.class));
+	
+	eq MemberAccess.DesignationType() {
+		if (!hasDesignation())
+			return (StructuredType)ErrorBuilder().ConstructErrorNode(StructuredType.class);
+		Type possibleIncompleteType = getDesignation().Type();
+		// We can only access structured types:
+		if (!(possibleIncompleteType instanceof StructuredType))
+			return (StructuredType)ErrorBuilder().ConstructErrorNode(StructuredType.class);
+		// Which must be defined, thus must not be incomplete:
+		TagedType type = ((StructuredType)possibleIncompleteType).FindCompleteTagedType();
+		if (type == null)
+			return (StructuredType)ErrorBuilder().ConstructErrorNode(StructuredType.class);
+		// And their definition must not be after this member access:
+		if (type.NodeAddress().compareTo(NodeAddress()) < 0 && !type.NodeAddress().isSuccessor(NodeAddress()))
+			return (StructuredType)ErrorBuilder().ConstructErrorNode(StructuredType.class);
+		return (StructuredType)type;
+	}
+	
+	eq MemberAccess.MemberDeclaration() = DesignationType().LookUpMember(MemberName()) != null ?
+			DesignationType().LookUpMember(MemberName()) :
+			(UnionOrStructureElement)ErrorBuilder().ConstructErrorNode(UnionOrStructureElement.class);
+	
+	eq Variable.VariableDeclaration() = LookUpOrdinaryName(Name()).isEmpty() ?
+			(Declaration)ErrorBuilder().ConstructErrorNode(Declaration.class) :
+			LookUpOrdinaryName(Name()).get(0);
+	
+	eq TypedefTypeReference.ReferencedTypedefDeclaration() {
+		java.util.List<IOrdinaryNameDeclaration> lookedUp =
+			LookUpOrdinaryName(Name());
+		if (lookedUp.isEmpty() || !(lookedUp.get(0) instanceof Declaration))
+			return (Declaration)ErrorBuilder().ConstructErrorNode(Declaration.class);
+		return (Declaration)lookedUp.get(0);
+	}
+	eq EnumTypeReference.ReferencedEnumerationType() {
+		java.util.List<TagedType> lookedUp = LookUpTag(Name());
+		if (lookedUp.isEmpty() || !(lookedUp.get(0).RetrieveFinalNode() instanceof Enumeration))
+			return (Enumeration)ErrorBuilder().ConstructErrorNode(Enumeration.class);
+		return (Enumeration)lookedUp.get(0).RetrieveFinalNode();
+	}
+	eq StructureTypeReference.ReferencedStructureType() {
+		java.util.List<TagedType> lookedUp = LookUpTag(Name());
+		if (lookedUp.isEmpty() || !(lookedUp.get(0).RetrieveFinalNode() instanceof Structure))
+			return (Structure)ErrorBuilder().ConstructErrorNode(Structure.class);
+		return (Structure)lookedUp.get(0).RetrieveFinalNode();
+	}
+	eq UnionTypeReference.ReferencedUnionType() {
+		java.util.List<TagedType> lookedUp = LookUpTag(Name());
+		if (lookedUp.isEmpty() || !(lookedUp.get(0).RetrieveFinalNode() instanceof Union))
+			return (Union)ErrorBuilder().ConstructErrorNode(Union.class);
+		return (Union)lookedUp.get(0).RetrieveFinalNode();
+	}
+	
+	eq GotoJump.ReferencedStatement() = LookUpLabel(DestinationName()).size() == 1 ?
+			LookUpLabel(DestinationName()).get(0) :
+			(LabeledStatement)ErrorBuilder().ConstructErrorNode(LabeledStatement.class);
+	
+	eq ContinueJump.ReferencedLoop() = FindEnclosingLoopStatement() != null ?
+			FindEnclosingLoopStatement() :
+			(ConditionalControlFlowStatement)ErrorBuilder().ConstructErrorNode(ConditionalControlFlowStatement.class);
+	
+	eq BreakJump.ReferencedConditionalControlFlowStatement() =
+		FindEnclosingLoopStatement() != null ?
+				(FindEnclosingSwitchStatement() != null ?
+						// Is the loop statement before the switch statement:
+						(FindEnclosingLoopStatement().NodeAddress().compareTo(FindEnclosingSwitchStatement().NodeAddress()) > 0 || FindEnclosingSwitchStatement().NodeAddress().isSuccessor(FindEnclosingLoopStatement().NodeAddress()) ?
+								// The switch statement is nearer to the break:
+								FindEnclosingSwitchStatement() :
+								// The loop statement is nearer to the break:
+								FindEnclosingLoopStatement()) :
+						// There exists only an enclosing loop statement, but no enclosing switch:
+						FindEnclosingLoopStatement()) :
+				// There exists no enclosing loop statement, but a switch may exist:
+				(FindEnclosingSwitchStatement() != null ?
+						FindEnclosingSwitchStatement() :
+						(ConditionalControlFlowStatement)ErrorBuilder().ConstructErrorNode(ConditionalControlFlowStatement.class));
+	
+	eq ReturnJump.ReferencedFunctionDefinition() = FindEnclosingFunctionDefinition() != null ?
+			FindEnclosingFunctionDefinition() :
+			(FunctionDefinitionInitializer)ErrorBuilder().ConstructErrorNode(FunctionDefinitionInitializer.class);
+	
+	eq SwitchLabelStatement.AssociatedSwitchStatement() = FindEnclosingSwitchStatement() != null ?
+			FindEnclosingSwitchStatement() :
+			(SwitchStatement)ErrorBuilder().ConstructErrorNode(SwitchStatement.class);
+}

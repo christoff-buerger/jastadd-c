@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LexicalTestSuite Description="Comment tests. BEWARE : Comments are ignored like whitespace, thus no token are returned.">
+<PositiveTests>
+	<LexicalTestFragment Description="Basic one line comment">
+		<SourceCode><![CDATA[//I am a comment.]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//I am a comment.]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Basic multi line comment">
+		<SourceCode><![CDATA[/*I am a multi
+ line
+comment.*/]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/*I am a multi
+ line
+comment.*/]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="One and multi line comments containing and ending with spaces and tabulators">
+		<SourceCode><![CDATA[//I am a 	   		comment ending with space 
+//I am a comment ending with tab	
+//I am a comment ending with	spaces and tabs 	  		   
+/*I am 	a comment   containing
+a	lot  	   			 	of 	spaces
+and tabulators
+ 	*/]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//I am a 	   		comment ending with space ]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//I am a comment ending with tab	]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//I am a comment ending with	spaces and tabs 	  		   ]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/*I am 	a comment   containing
+a	lot  	   			 	of 	spaces
+and tabulators
+ 	*/]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="One and multi line comments embedded in each other (no nested multi line comments)">
+		<SourceCode><![CDATA[//I am a comment //embedded in //a// comment as well.
+//*I am a comment (/*embedded /*in*/ /**a**/ comment*/) as well.*/
+// */
+/*I am a comment //embedded //in
+ //a comment
+//as well*/
+/*//*/]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//I am a comment //embedded in //a// comment as well.]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//*I am a comment (/*embedded /*in*/ /**a**/ comment*/) as well.*/]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[// */]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/*I am a comment //embedded //in
+ //a comment
+//as well*/]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/*//*/]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="One and multi line comments with multibyte characters of the extended character set (Physical source file multibyte characters are mapped to the source character set in translation phase 1 if necessary ==&gt; characters should be the same.)">
+		<SourceCode><![CDATA[//I am a comment with ä, öü, €, ² and ³.
+/*I am a comment with ä,
+öü, €, ² and ³.*/]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//I am a comment with ä, öü, €, ² and ³.]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/*I am a comment with ä,
+öü, €, ² and ³.*/]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="One and multi line comments with Trigraphs (Trigraph sequences are replaced by corresponding single-character internal representations in translation phase 1)">
+		<SourceCode><![CDATA[//I am a comment with ??(??<??/??'??=??)??>??!??-.
+/* I am a comment with
+??(??<??/??'??=??)??>??!??-.
+*/]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//I am a comment with [{\^#]}|~.]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/* I am a comment with
+[{\^#]}|~.
+*/]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Splitted one and multi line comments (In translation phase 2 each instance of a \ character immediately followed by a new-line character is deleted, splicing physical source lines to form logical source lines)">
+		<SourceCode><![CDATA[//I am allright, \
+as i am\\
+ just a concatenated\\\
+ one line \
+comment.
+/*Multi line comments may\
+ use line breaks \\
+as\\\
+ well
+   .*/
+/\
+/I\
+ am a one line comment with line \
+break at the beginning.
+/\
+*I am a multi line comment with line break at the beginning.*/
+/*I am a multi line comment with line break at the ending.*\
+/]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//I am allright, as i am\ just a concatenated\\ one line comment.]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/*Multi line comments may use line breaks \as\\ well
+   .*/]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//I am a one line comment with line breaks at the beginning.]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/*I am a multi line comment with line break at the beginning.*/]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/*I am a multi line comment with line break at the ending.*/]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="One and multi line comments with escape sequences \', \&quot;, \?, \\, \a, \b, \f, \n, \r, \t and \v, as well as octal escape sequences, hexadecimal escape sequences and Universal Character Names (Comments are &quot;converted&quot; into whitespace in translation phase 3, but escape sequences are converted to their corresponding character in the execution character set in phase 5 ==&gt; escape sequences don't have any influence in comments)">
+		<SourceCode><![CDATA[//I am a comment with the escape sequences \', \", \?, \\, \a, \b, \f, \n, \r, \t and \v.
+/*I am a comment with the escape sequences
+\', \", \?, \\, \a, \b, \f, \n, \r, \t and \v.*/
+//I am a comment with the octal escape sequences \070, \171\272, \173and\174.
+/*I am a comment with the octal escape sequences
+\070, \171\272, \173and\174.*/
+//I am a comment with the hexadecimal escape sequences \x0Af3186Fe45, \x1A\xa3, \x1e3and\x1e4.
+/*I am a comment with the hexadecimal escape sequences
+\x0Af3186Fe45, \x1A\xa3, \x1e3and\x1e4.*/
+//I am a comment with the Universal Character Names : \u0100 (256'th character), \u0e2F (thai), \U00010330\U0001034F (gothic).
+/*I am a comment with the Universal Character Names :
+\u0100 (256'th character), \u0e2F (thai), \U00010330\U0001034F (gothic).]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//I am a comment with the escape sequences \', \", \?, \\, \a, \b, \f, \n, \r, \t and \v.]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/*I am a comment with the escape sequences
+\', \", \?, \\, \a, \b, \f, \n, \r, \t and \v.*/]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//I am a comment with the octal escape sequences \070, \171\272, \173and\174.]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/*I am a comment with the octal escape sequences
+\070, \171\272, \173and\174.*/]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//I am a comment with the hexadecimal escape sequences \x0Af3186Fe45, \x1A\xa3, \x1e3and\x1e4.]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/*I am a comment with the hexadecimal escape sequences
+\x0Af3186Fe45, \x1A\xa3, \x1e3and\x1e4.*/]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[//I am a comment with the Universal Character Names : \u0100 (256'th character), \u0e2F (thai), \U00010330\U0001034F (gothic).]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/*I am a comment with the Universal Character Names :
+\u0100 (256'th character), \u0e2F (thai), \U00010330\U0001034F (gothic).*/]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Checking, if multi line comments nest (they must not)">
+		<SourceCode><![CDATA[/*/*/0*/**/1]]></SourceCode>
+		<ExpectedToken>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/*/*/]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[0]]></Lexem>
+			</Token>
+			<Token Type="STAR">
+				<Lexem><![CDATA[*]]></Lexem>
+			</Token>
+			<Token Type="COMMENT">
+				<Lexem><![CDATA[/**/]]></Lexem>
+			</Token>
+			<Token Type="CONSTANT">
+				<Lexem><![CDATA[1]]></Lexem>
+			</Token>
+		</ExpectedToken>
+	</LexicalTestFragment>
+</PositiveTests>
+
+<NegativeTests>
+	<LexicalTestFragment Description="Checking that &quot;comment starting and end markers&quot; containing whitespaces don't start/end any comments">
+		<SourceCode><![CDATA[//I fail 
+as well.]]></SourceCode>
+		<SourceCode><![CDATA[/ /I fail as well.]]></SourceCode>
+		<SourceCode><![CDATA[/	/I fail as well (tabulator).]]></SourceCode>
+		<SourceCode><![CDATA[/\
+ /I am not a one line comment with line breaks.]]></SourceCode>
+		<SourceCode><![CDATA[/\
+	/I am not a one line comment with line breaks (tabulator).]]></SourceCode>
+		<SourceCode><![CDATA[/ *I fail as well.*/]]></SourceCode>
+		<SourceCode><![CDATA[/	*I fail as well (tabulator).*/]]></SourceCode>
+		<SourceCode><![CDATA[/*I fail as well.* /]]></SourceCode>
+		<SourceCode><![CDATA[/*I fail as well (tabulator).*	/]]></SourceCode>
+		<SourceCode><![CDATA[/\
+ *I am not a multi line comment.*/]]></SourceCode>
+ 		<SourceCode><![CDATA[/\
+	*I am not a multi line comment (tabulator).*/]]></SourceCode>
+		<SourceCode><![CDATA[/*I am not a multi line comment.*\
+ /]]></SourceCode>
+ 		<SourceCode><![CDATA[/*I am not a multi line comment (tabulator)*\
+	/]]></SourceCode>
+	</LexicalTestFragment>
+	
+	<LexicalTestFragment Description="Checking that comments don't nest">
+		<SourceCode><![CDATA[/*Comments /**don't**/ nest, so i fail.*/]]></SourceCode>
+	</LexicalTestFragment>
+</NegativeTests>
+</LexicalTestSuite>

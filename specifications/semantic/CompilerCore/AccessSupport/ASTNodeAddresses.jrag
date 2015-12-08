@@ -1,0 +1,14 @@
+/*
+	This program and the accompanying materials are made available under the
+	terms of the MIT license (X11 license) which accompanies this distribution.
+	
+	Author: Christoff Bürger
+*/
+
+aspect ASTNodeAddresses {
+	syn jastaddc.semantics.NodeAddress Compilation.NodeAddress() =
+		new jastaddc.semantics.NodeAddress(1).addAddressPart(1);
+	
+	eq ASTNode.getChild(int index).NodeAddress() =
+		NodeAddress().clone().addAddressPart(index + 1);
+}

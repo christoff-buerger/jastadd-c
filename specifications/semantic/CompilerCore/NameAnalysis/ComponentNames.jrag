@@ -1,0 +1,19 @@
+/*
+	This program and the accompanying materials are made available under the
+	terms of the MIT license (X11 license) which accompanies this distribution.
+	
+	Author: Christoff Bürger
+*/
+
+aspect ComponentNames {
+	eq StructuredType.LookUpMember(String memberToFind) {
+		if (memberToFind == null)
+			return null;
+		for (int i = 0; i < getNumElement(); i++) {
+			UnionOrStructureElement elem = getElement(i);
+			if (elem.Name().equals(memberToFind))
+				return elem;
+		}
+		return null;
+	}
+}

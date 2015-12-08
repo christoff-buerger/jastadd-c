@@ -1,0 +1,14 @@
+/*
+	This program and the accompanying materials are made available under the
+	terms of the MIT license (X11 license) which accompanies this distribution.
+	
+	Author: Christoff Bürger
+*/
+
+/**
+ * This specification adds the error handling specific nodes
+ * supported by this error handling module.
+ */
+
+DefaultErrorBuilder:ErrorBuilder ::=
+	[TranslationUnit];

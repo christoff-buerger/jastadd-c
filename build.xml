@@ -1,0 +1,98 @@
+<!--
+	This program and the accompanying materials are made available under the
+	terms of the MIT license (X11 license) which accompanies this distribution.
+	
+	Author: Christoff Bürger
+-->
+
+<project name="JastAddC_All" default="gen" basedir=".">
+	<taskdef
+		classname = "JFlex.anttask.JFlexTask"
+		name      = "jflex"
+		classpath = "sources/libraries/JFlex.jar"
+	/>
+	<taskdef
+		name      = "beaver"
+		classname = "beaver.comp.run.AntTask"
+		classpath = "sources/libraries/beaver.jar"
+	/>
+	<taskdef
+		classname = "jastadd.JastAddTask"
+		name      = "jastadd"
+		classpath = "sources/libraries/jastadd2.jar"
+	/>
+
+	<target name="gen">
+		<!-- Syntax Analyses -->
+		<jflex
+			file    = "specifications/symbols/CCharacterMapper_.jflex"
+			destdir = "src-gen"
+			nobak   = "on"
+			verbose = "on"
+		/>
+		<jflex
+			file    = "specifications/symbols/CFloatingConstantLexer.jflex"
+			destdir = "src-gen"
+			nobak   = "on"
+			verbose = "on"
+		/>
+		<jflex
+			file    = "specifications/symbols/CIntegerConstantLexer.jflex"
+			destdir = "src-gen"
+			nobak   = "on"
+			verbose = "on"
+		/>
+		<jflex
+			file    = "specifications/symbols/CLexer.jflex"
+			destdir = "src-gen"
+			nobak   = "on"
+			verbose = "on"
+		/>
+		<jflex
+			file    = "specifications/symbols/CSourceReader.jflex"
+			destdir = "src-gen"
+			nobak   = "on"
+			verbose = "on"
+		/>
+		<jflex
+			file    = "specifications/symbols/CSplicer.jflex"
+			destdir = "src-gen"
+			nobak   = "on"
+			verbose = "on"
+		/>
+		<property name="beaver.available" value="yes"/>
+		<beaver
+			file             = "specifications/syntax/CParser.beaver"
+			destdir          = "src-gen"
+			compress         = "yes"
+			exportTables     = "no"
+			sortTerminals    = "no"
+			terminalNames    = "yes"
+			exportTerminals  = "no"
+			useSwitch        = "no"
+			anonymousActions = "yes"
+			reportActions    = "no"
+		/>
+		<!-- Semantic Analyses -->
+		<jflex
+			file    = "specifications/semantic/CompilerCore/ConcreteToASTMapping/PrimitiveTypesLexer.jflex"
+			destdir = "src-gen"
+			nobak   = "on"
+			verbose = "on"
+		/>
+		<jastadd package="jastaddc.semantics" rewrite="true" outdir="src-gen">
+			<fileset dir=".">
+				<include name = "specifications/semantic/**/*.ast"/>
+				<include name = "specifications/semantic/**/*.jrag"/>
+				<include name = "specifications/semantic/**/*.jadd"/>
+				<include name = "testing/jastaddc/tests/syntax/**/*.jrag"/>
+			</fileset>
+		</jastadd>
+	</target>
+	
+	<target name="clean">
+		<delete includeemptydirs="true">
+			<fileset dir="src-gen" includes="**/*"/>
+		</delete>
+	</target>
+</project>

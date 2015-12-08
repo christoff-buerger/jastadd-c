@@ -1,3 +1,10 @@
+/*
+	This program and the accompanying materials are made available under the
+	terms of the MIT license (X11 license) which accompanies this distribution.
+	
+	Author: Christoff Bürger
+*/
+
 package jastaddc.tests.lexical;
 
 import java.io.Reader;
@@ -21,9 +28,6 @@ import jastaddc.semantics.ast.Identifier;
 /**
  * The JastAddC lexical test suite configuration. The generated JastAddC lexer
  * is wrapped and used for testing purposes.
- * 
- * @author C. Bürger
- *
  */
 public class LexicalTestsuiteConfiguration extends AConfiguration {
 	private ILexerAdapter lexerAdapter;

@@ -1,9 +1,0 @@
-/**
- * This specification adds the error handling specific nodes
- * supported by this error handling module.
- *
- * @author C. Bürger
- */
-
-DefaultErrorBuilder:ErrorBuilder ::=
-	[TranslationUnit];

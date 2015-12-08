@@ -1,0 +1,48 @@
+/*
+	This program and the accompanying materials are made available under the
+	terms of the MIT license (X11 license) which accompanies this distribution.
+	
+	Author: Christoff Bürger
+*/
+
+/**
+ * Check the general name analysis strategy description for additional informations
+ * about the attribute definitions given here and their interaction.
+ */
+aspect Labels {
+	/**
+	 * Generic name analysis algorithm:
+	 */
+	eq ASTNode.FindNodeIntroducingThisLabelBlock() =
+		IntroducesNewLabelBlock() ? this : getParent().FindNodeIntroducingThisLabelBlock();
+	
+	// Each node introducing a new label namespace block has a collection of
+	// all the labels declared in this block:
+	coll java.util.List<LabeledStatement> ASTNode.LocalLabelDeclarations()
+		[new java.util.ArrayList<LabeledStatement>()] with add;
+	
+	eq ASTNode.LookUpLabel(String name) {
+		ASTNode blockNode = FindNodeIntroducingThisLabelBlock();
+		java.util.List<LabeledStatement> result = ListFilter.filter(
+				blockNode.LocalLabelDeclarations(),
+				new LabelNameFilter(name));
+		return !result.isEmpty() ? result : (blockNode.getParent() == null ?
+					new java.util.ArrayList<LabeledStatement>(0) :
+					blockNode.getParent().LookUpLabel(name));
+	}
+	
+	/**
+	 * The ASTNodes introducting new blocks for label names.
+	 */
+	// By default no nodes introduce new label blocks, except the root node:
+	eq ASTNode.IntroducesNewLabelBlock() =
+		getParent() == null ? true : false;
+	// Function definitions form label blocks [6.2.1:3] S. 29:
+	eq Declaration.IntroducesNewLabelBlock() = IsFunctionDefinition();
+	
+	/**
+	 * The ASTNodes adding some name to the label name space.
+	 */
+	ExplicitLabeledStatement contributes this
+		to ASTNode.LocalLabelDeclarations() for FindNodeIntroducingThisLabelBlock();
+}

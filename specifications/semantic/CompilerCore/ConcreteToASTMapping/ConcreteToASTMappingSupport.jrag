@@ -1,0 +1,21 @@
+/*
+	This program and the accompanying materials are made available under the
+	terms of the MIT license (X11 license) which accompanies this distribution.
+	
+	Author: Christoff Bürger
+*/
+
+/**
+ * This aspect provides support methods/classes used by the mapping
+ * module.
+ */
+aspect ConcreteToASTMappingSupport {
+	/**
+	 * Support the construction of unique tags for anonymous types:
+	 */
+	private int Compilation.constructedAnonymousTagsCount = 0;
+	protected String Compilation.buildAnonymousTag() {
+		constructedAnonymousTagsCount++;
+		return "§Anonymous TagedType ["+ constructedAnonymousTagsCount +"]§";
+	}
+}

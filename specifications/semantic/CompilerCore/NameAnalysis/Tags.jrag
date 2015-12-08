@@ -1,0 +1,81 @@
+/*
+	This program and the accompanying materials are made available under the
+	terms of the MIT license (X11 license) which accompanies this distribution.
+	
+	Author: Christoff Bürger
+*/
+
+/**
+ * Check the general name analysis strategy description for additional informations
+ * about the attribute definitions given here and their interaction.
+ */
+aspect Tags {
+	/**
+	 * Provide functionallity to retrieve for each TagedType its real
+	 * type definition.
+	 */
+	// If an incomplete type is defined (made complete) this must be
+	// in the same block (the type definition may be after or even
+	// before the incomplete type declaration in this block).
+	eq TagedType.FindCompleteTagedType() {
+		if (!IsIncompleteType())
+			return this;
+		java.util.List<TagedType> types = ListFilter.filter(
+				FindNodeIntroducingThisTagBlock().LocalTagDeclarations(),
+				new CompleteTagedTypeFilter(
+						new TagedTypeTypeFilter(
+								new TagNameFilter(
+										new AddressFilter(
+												FindNodeIntroducingThisTagBlock().NodeAddress()),
+										Name()),
+								this.getClass().getName(),
+								true)));
+		return !types.isEmpty() ? types.get(0) : null;
+	}
+	
+	/**
+	 * Support to decide whether a TagedType is an incomplete type or not.
+	 */
+	// Enumerations can never be incomplete [6.7.2.3:7] S 107.
+	eq Enumeration.IsIncompleteType() = false;
+	eq StructuredType.IsIncompleteType() = getNumElement() > 0 ? false : true;
+	
+	/**
+	 * Generic name analysis algorithm:
+	 */
+	eq ASTNode.IntroducesNewTagBlock() =
+		IsNodeTypeTagBlock() || IsTagBlockInContext(this);
+	eq ASTNode.FindNodeIntroducingThisTagBlock() =
+		IntroducesNewTagBlock() ? this : getParent().FindNodeIntroducingThisTagBlock();
+	
+	// Each node introducing a new tag namespace block has a collection of
+	// all the tags declared in this block:
+	coll java.util.List<TagedType> ASTNode.LocalTagDeclarations()
+		[new java.util.ArrayList<TagedType>()] with add;
+	
+	eq ASTNode.LookUpTag(String name) = LookUpTag(name, NodeAddress());
+	eq ASTNode.LookUpTag(String name, jastaddc.semantics.NodeAddress upToAddress) {
+		ASTNode blockNode = FindNodeIntroducingThisTagBlock();
+		java.util.List<TagedType> result = ListFilter.filter(
+				blockNode.LocalTagDeclarations(),
+				new TagNameFilter(new AddressFilter(upToAddress), name));
+		return !result.isEmpty() ? result : (blockNode.getParent() == null ?
+					new java.util.ArrayList<TagedType>(0) :
+					blockNode.getParent().LookUpTag(name, upToAddress));
+	}
+	
+	/**
+	 * The ASTNodes introducing new blocks for tags.
+	 */
+	syn boolean ASTNode.IsTagBlockInContext(ASTNode node) =
+		IsOrdinaryNameBlockInContext(node);
+	syn boolean ASTNode.IsNodeTypeTagBlock() =
+		IsNodeTypeOrdinaryNameBlock();
+	
+	/**
+	 * The ASTNodes adding some tag name to the name space.
+	 */
+	// Adding enumeration, structure and union tags:
+	TagedType contributes this when hasTag()
+		to ASTNode.LocalTagDeclarations() for FindNodeIntroducingThisTagBlock();
+}

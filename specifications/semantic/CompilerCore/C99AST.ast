@@ -1,0 +1,669 @@
+/*
+	This program and the accompanying materials are made available under the
+	terms of the MIT license (X11 license) which accompanies this distribution.
+	
+	Author: Christoff Bürger
+*/
+
+/**
+ * Abstract syntax tree (AST) specification for the JastAddC C99 compiler. The
+ * AST is the basis for all semantic analysis. It models the "Phrase structure
+ * grammar" [A.2] S.409.
+ * 
+ * BEWARE :
+ *  - Variable array lengths are not modeled ([*]).
+ *  - static storage class specifier in function array parameters are not
+ *    supported. E.g.: void func(int array[static])
+ *
+ * IMPORTANT: all abstract nodes, which name starts with '_Intermediate' exist
+ * for rewriting purposes, supporting the mapping from the concrete to the
+ * abstract syntax. They have an attribute RetrieveFinalNode(), which returns
+ * a node type of the final AST. For the intermediate nodes, which have to be
+ * rewritten to the nodes they represent, this attribute will cause a
+ * ConcreteToAbstractSyntaxMappingError exception, which is a RuntimeException,
+ * and "kill" the compiler. This behavior is appropriate, as
+ * such intermediate nodes should never ever occur. They have always (without
+ * any condition restricting this rule) to be rewritten to final AST nodes.
+ * If this is not the case, the compiler implementation is erroneouse.
+ * Intermediate nodes may have only attributes, whichs task
+ * is to support the rewriting process! Other attributes are not permitted!
+ * The same holds for intertype declarations or imperative methods woven.
+ * If some final node type inherits from an intermediate node type the final
+ * node type must NOT occurr on the right hand side of any rule. Instead always
+ * the intermediate node type is used.
+ */
+
+/* ************************************************************* Terminals ************************************************************* */
+
+/**
+ * In contrast to the C99 standard JastAddC's string literals are constants.
+ * In the C99 standard they form their own lexem class.
+ */
+abstract Constant:Expression ::= <Lexem:String>;
+	
+	IntegerConstant:Constant ::= <NumericValue:String> Radix:NumeralSystemRadix Type:PrimitiveType;
+	FloatingConstant:Constant ::= <WholeNumberPart:String> <FractionalPart:String> <Exponent:String> Radix:NumeralSystemRadix Type:PrimitiveType;
+	CharacterConstant:Constant ::= <CharacterValue:String> <IsWideCharacter:boolean>;
+	StringLiteral:Constant ::= <StringValue:String> <IsWideString:boolean>;
+
+abstract NumeralSystemRadix;
+	
+	NumeralSystemOctal:NumeralSystemRadix;
+	NumeralSystemHexadecimal:NumeralSystemRadix;
+	NumeralSystemDecimal:NumeralSystemRadix;
+
+abstract StorageClassSpecifier:_declaration_specifiers;
+	
+	Auto:StorageClassSpecifier;
+	Extern:StorageClassSpecifier;
+	Register:StorageClassSpecifier;
+	Static:StorageClassSpecifier;
+	Typedef:StorageClassSpecifier;
+
+abstract FunctionSpecifier:_declaration_specifiers;
+	
+	Inline:FunctionSpecifier;
+
+abstract TypeQualifier:_specifier_qualifier;
+	
+	Const:TypeQualifier;
+	Restrict:TypeQualifier;
+	Volatile:TypeQualifier;
+
+Identifier ::= <Value:String>;
+
+/* ************************************************ External Definitions [A.2.4] S.416 ************************************************* */
+
+Compilation ::= TranslationUnit ErrorBuilder;
+
+/**
+ * An error builder is used to construct all the different error nodes. Such error
+ * nodes can be used to represent attribute or method computation results of
+ * attributes referencing AST nodes. For each node depending on another node to
+ * compute it's semantics, but the other node may be an arbitrary node in the AST,
+ * thus to find it complex computations have to be done, which have their own semantic
+ * constraints, an attribute method providing save access for the needed
+ * node has to be supported. If any of the semantic constraints specifying
+ * which node this one depends on are not met, the access attribute will
+ * return an appropriate error node of the type of the node needed.
+ * 
+ * If attributes/methods of error nodes are called (because the final
+ * AST node type they inherit has such ones) the computations have to be harmless
+ * and well defined. This means:
+ *  - no exceptions are thrown
+ *  - but the result may be an error node again.
+ * 
+ * The ErrorBuilder node supports an ErrorBuilder() method to make it
+ * accessible from anywhere of the tree, so appropriate error results can be
+ * constructed during any attribute/method evaluation.
+ * 
+ * The error handling module implementation has to specify this node, providing
+ * functionality to construct error nodes.
+ */
+abstract ErrorBuilder;
+
+TranslationUnit ::= Declaration:_IntermediateDeclarationCollection*;
+
+/* **************************************************** Declarations [A.2.2] S.411 ***************************************************** */
+
+/**
+ * Check the introduction about this node's purpose!
+ */
+abstract _IntermediateDeclarationCollection:Statement;
+	
+	/**
+	 * One C99 declaration can declare several entities. For much more convenient
+	 * AST's each entity declared will be represented by it's own Declaration node.
+	 * 
+	 * REWRITE: Thus there must be some mapping from the concrete syntax to the
+	 * abstract one mapping a C99 declaration to a collection of AST declarations.
+	 */
+	DeclarationCollection:_IntermediateDeclarationCollection ::= Declaration*;
+
+/**
+ * In C99 declarations are no statements. See the comments in the "Statements"
+ * section.
+ * 
+ * A declaration binds a name to a type (but a BindedName has not always to be
+ * given, e.g. if a structure type is declaraed but no object of the given type
+ * is instantiated immediately). Additionally it may allocate
+ * memory for the binded name, so an object/function for the given type is
+ * constructed and associated with the name. In this case the declaration is a
+ * definition. Additionally an object constructed this way may be initialized.
+ * In the AST the function definitions of the standard are function declarations
+ * with an initializer, representing the function body, thus the initializer is
+ * a compound statement. As C99 does not allow nested function definitions, a
+ * semantical check has to be done to ensure this.
+ * 
+ * A function with a body is the definition of the function, thus the
+ * initializer of a function is it's body. Function prototypes can later be
+ * rewritten/semantical evaluated to be associated with their definition.
+ * 
+ * Semantic tests, if the Declaration is valid are necessary, e.g. :
+ * - Declarations must be checked, that they declare something (declarator,
+ *   tag, members of an enumeration) [6.7:2] S.97. EXCEPTION: If the declaration
+ *   is a parameter declaration of a function type it may just represent the
+ *   type void [6.7.5.3:10] S. 119.
+ * - If an Initializer exists, a BindedName must be given as well. The
+ *   Initializer must fit to the Type of the Declaration.
+ *   Enumerations never have initializer.
+ * - The StorageClass must fit in the Declaration's context:
+ *      - auto or register are not allowed in external declarations
+ *        [6.9:2] S.140.
+ *      - If the Declaration Type is a FunctionType: only extern or static
+ *        are allowed [6.9.1:4] S.141.
+ * - At most one storage class specifier might be given in the declaration
+ *   specifiers of a declaration [6.7.1:2] S. 98.
+ * - If the Declaration Type is a FunctionType and an Initializer is given:
+ *      - each FunctionParameter must have a Name, except only one parameter of
+ *        Type void is given [6.9.1:5] S. 141.
+ *      - Storage class specifiers of parameters have to be handled. If no
+ *        Initializer for a function declaration is given, storage class
+ *        specifier of parameters can be ignored [6.7.5.3:13] S. 119.
+ */
+Declaration:Statement ::= StorageClassSpecifier* FunctionSpecifier* Type:_IntermediateType [BindedName:Identifier] [Initializer];
+
+abstract Initializer;
+	
+	FunctionDefinitionInitializer:Initializer ::= Body:CompoundStatement;
+	abstract NormalInitializer:Initializer;
+
+		/**
+		 * A CommaExpression is not permitted as Value.
+		 */
+		AtomicInitializer:NormalInitializer ::= Value:Expression;
+		CompoundInitializer:NormalInitializer ::= InitializerElement*;
+
+		/**
+		 * After parsing the DesignatorAccess will have no Designation.
+		 * The C99 standard defines the current object of initializer implicitly
+		 * [6.7.8] S.125.
+		 * 
+		 * REWRITE: If a DesignatorAccess is given it's Designation will be
+		 * rewritten to an expression/an expression will be simulated, so that
+		 * the type of the DesignatorAccess is the type of the object initialized
+		 * and the Designation is the implicitly defined object [6.7.8] S.125.
+		 * E.g.: in
+		 * 
+		 * struct s1 {int i;};
+		 * struct s2 {double d; struct s1 s;} so = {3.0, .s = {.i = 3}};
+		 * 
+		 * the Designation for the MemberAccess '.s' will be the result of the
+		 * expression 'so', which is of type 's2', thus 'so.s' is of type 's1'.
+		 * The Designation for the MemberAccess '.i' will be the result of the
+		 * expression 'so.s', which is of type 's1', thus 'so.s.i' is of  type int.
+		 * 
+		 * REWRITE: If no DesignatorAccess is given, the implicit accessed Element
+		 * is made explicit by adding the corresponding DesignatorAccess.
+		 */
+		abstract InitializerElement ::= [DesignatorAccess];
+
+			InnerInitialization:InitializerElement ::= CompoundInitializer;
+			ElementInitialization:InitializerElement ::= Value:Expression;
+
+/* ******************************************************** Types [A.2.2] S.411 ******************************************************** */
+
+/**
+ * Check the introduction about this node's purpose!
+ */
+abstract _IntermediateType;
+/**
+ * Types represent "type-names" [6.7.6] S. 122.
+ * 
+ * Each type may be qualified with an arbitrary combination of qualifiers [6.2.5:25] S.36,
+ * [6.7.3] S.108, thus a TypeQualifier may specify several qualifications. The order of
+ * the qualifications doesn't matter [6.7.3:9] S. 109. If the same qualifier appears
+ * more than once, the behavior is the same as if it appeared only once [6.7.3:4] S. 108.
+ * A type may have no type qualifiers at all.
+ */
+abstract Type:_IntermediateType ::= TypeQualifier*;
+
+	/**
+	 * AtomicTypes represent "type-specifier" [6.7.2] S.99.
+	 * 
+	 * All Type implementations are recursive, expect the AtomarType. This guarantees,
+	 * that "at least one type specifier shall be given in the declaration specifiers
+	 * in each declaration, and in the specifier-qualifier list in each struct
+	 * declaration and type name" [6.7.2:2] S.99.
+	 * 
+	 * The TypeName of AtomarTypes may be :
+	 * - A Type created by typedef
+	 * - A structure, union or enum tag
+	 * - A standard type's name (standard types are listed below)
+	 * - void
+	 * - char
+	 * - _Bool
+	 * 
+	 * The standard signed integer types [6.2.5:4] S.33 are :
+	 * - signed char
+	 * - signed short int
+	 * - signed int
+	 * - signed long int
+	 * - signed long long int
+	 * 
+	 * The standard unsigned integer types [6.2.5:6] S.33 are :
+	 * - unsigned char
+	 * - unsigned short int
+	 * - unsigned int
+	 * - unsigned long int
+	 * - unsigned long long int
+	 * 
+	 * The standard real floating types [6.2.5:10] S.34 are :
+	 * - float
+	 * - double
+	 * - long double
+	 * 
+	 * The standard complex types [6.2.5:11] S.34 are :
+	 * - float _Complex
+	 * - double _Complex
+	 * - long double _Complex
+	 * 
+	 * PARSER-CONSTRAINT / REWRITE: The parser guarantees following rewrites
+	 * [6.7.2:2] S.99:
+	 * 1)	short 				--> signed short int
+	 * 		signed short 		--> signed short int
+	 * 		short int 			--> signed short int
+	 * 2)	unsigned short 		--> unsigned short int
+	 * 3)	int 				--> signed int
+	 * 		signed 				--> signed int
+	 * 4)	unsigned 			--> unsigned int
+	 * 5)	long 				--> signed long int
+	 * 		signed long 		--> signed long int
+	 * 		long int 			--> signed long int
+	 * 6)	unsigned long 		--> unsigned long int
+	 * 7)	long long 			--> signed long long int
+	 * 		signed long long 	--> signed long long int
+	 * 		long long int 		--> signed long long int
+	 * 8)	unsigned long long 	--> unsigned long long int
+	 */
+	abstract AtomicType:Type;
+		
+		PrimitiveType:AtomicType ::= <Type:jastaddc.semantics.PrimitiveTypes>;
+		TypedefTypeReference:AtomicType ::= ReferenceName:Identifier;
+		/**
+		 * Structure and union type references DON'T model incomplete
+		 * types. They model a reference to a structure or union type
+		 * (which is maybe incomplete).
+		 */
+		StructureTypeReference:AtomicType ::= ReferenceName:Identifier;
+		UnionTypeReference:AtomicType ::= ReferenceName:Identifier;
+		EnumTypeReference:AtomicType ::= ReferenceName:Identifier;
+	
+	/**
+	 * To represent multidimensional arrays an Array type can have another
+	 * Array type as ElementType. In such a case the first dimension Expression
+	 * object may be null, so the array is an incomplete array type
+	 * [6.2.5:22] S.36, [6.7.5.2:4] S.116.
+	 * 
+	 * REWRITE: If an incomplete array type is declared and an initialization
+	 * is given, a rewrite will be executed, setting the arrays first dimension
+	 * to the appropriate size (only the first dimension can be left out).
+	 * E.g.:
+	 * 
+	 * int a[] = {0,0,0}; --> int a[3] = {0,0,0};
+	 * 
+	 * and
+	 * 
+	 * int a[][2] = {1,2,3}; --> int a[2][2] = {{1,2},{3,0}};
+	 */
+	Array:Type ::= ElementType:_IntermediateType [Dimension:Expression];
+
+	Pointer:Type ::= Type:_IntermediateType;
+
+	/**
+	 * A function type's parameter may have no name, e.g. function prototype's.
+	 * 
+	 * If no parameter declarations are specified (empty list) the function
+	 * has no parameter specification. If the function has no parameters,
+	 * the parameter declarations list contains one element, the declaration
+	 * of a nameless parameter of type void ([6.7.5.3:10] S. 119).
+	 * 
+	 * The only StorageClass specifier that shall occur for a FunctionParameter
+	 * is register [6.7.5.3:2] S. 118.
+	 * 
+	 * PARSER-CONSTRAINT / REWRITE: Array parameters of type T will be
+	 * rewritten to qualified pointer to T [6.7.5.3:7] S.119. The type
+	 * qualifiers are those within the arrays brackets ([ and ]). Type
+	 * qualifiers and/or the static keyword in array brackets are only
+	 * permitted in declarations of function parameters with array type
+	 * [6.7.5.2:1] S. 116. E.g.:
+	 *
+	 * void f (int* array[const]); --> void f (int** const array);
+	 * 
+	 * thus, array is a constant pointer to a pointer to integer. Represented
+	 * as tree:
+	 * 
+	 *                  D
+	 *                /   \
+	 *              F T  BN:f
+	 *             /   \
+	 *           A T    D
+	 *            |     | \
+	 *         TN:void  |  \
+	 *                  | N:array
+	 *                  P
+	 *                 / \
+	 *                P   \
+	 *                | TQ:{const}
+	 *               A T
+	 *                |
+	 *              TN:int
+	 * 
+	 * with : D ...Declaration
+	 *        FT...FunctionType
+	 *        BN...BindedName
+	 *        AT...AtomarType
+	 *        TN...TypeName
+	 *        P ...Pointer
+	 *        TQ...TypeQualifier
+	 * 
+	 * REWRITE: Old style function definitions have to be rewritten by the
+	 * parser. E.g.:
+	 * 
+	 * void func(a,b,c) 
+	 *    int a, b;
+	 *    double c; {
+	 *    // the function body
+	 * }
+	 * 
+	 * will become
+	 * 
+	 * void func(int a, int b, double c) {
+	 *    // the function body
+	 * }
+	 */
+	abstract FunctionType:Type ::= ReturnType:_IntermediateType Parameter:Declaration*;
+	
+		NormalFunction:FunctionType;
+		VariadicFunction:FunctionType;
+
+	abstract TagedType:Type ::= [Tag:Identifier];
+		Enumeration:TagedType ::= EnumerationElement*;
+		
+			/**
+			 * REWRITE: The value of an enumeration is given implicit [6.7.2.2;3] S.105.
+			 * 
+			 * REWRITE: The type of enumeration elements is implicitly given to be int
+			 * [6.7.2.2:3] S.105. It must be ensured, that this implicit type is made
+			 * explicit, by guaranteeing, that the enumeration element's type node
+			 * represents an int.
+			 */
+			EnumerationElement ::= /Type:_IntermediateType/ BindedName:Identifier [Value:Expression];
+		
+		/**
+		 * Structures and unions may be incomplete [6.2.5:22] S.36. Incomplete
+		 * structures or unions have no Element (the Element:UnionOrStructureElement*
+		 * list is empty).
+		 * 
+		 * Incomplete structure or union types can later be rewritten/semantical
+		 * evaluated to become complete.
+		 */
+		abstract StructuredType:TagedType ::= Element:UnionOrStructureElement*;
+
+			Structure:StructuredType;
+			Union:StructuredType;
+
+		abstract UnionOrStructureElement ::= Type:_IntermediateType;
+
+			/**
+			 * The Size expression of bit fields must be a constant, non
+			 * negative integer expression [6.7.2.1:3] S.101.
+			 * 
+			 * BEWARE: The non negative part can not be evaluated machine
+			 * independent, thus the same constant expression may have
+			 * different results in different C99 implementations.
+			 */
+			NormalUnionOrStructureElement:UnionOrStructureElement ::= Name:Identifier;
+			BitField:UnionOrStructureElement ::= [Name:Identifier] Size:Expression;
+
+/* ***************************************************** Statements [A.2.3] S.415 ****************************************************** */
+
+abstract Statement;
+	
+	EmptyStatement:Statement;
+	ExpressionStatement:Statement ::= Expression;
+	
+	/**
+	 * Instead to the standard, here a declaration is a statement, thus
+	 * Declaration:Statement ::= ...
+	 * 
+	 * PARSER-CONSTRAINT: The parser guarantees, that declarations do not
+	 * occur, where only statements are allowed. E.g.:
+	 * 
+	 * Label: int a; // not allowed in C99 : a declaration is no statement
+	 * 
+	 * if (i)
+	 *    int i; // not allowed in C99 : a declaration is no statement
+	 * 
+	 * switch(i)
+	 *    case 1:int i=2; // not allowed in C99 : a declaration is no statement
+	 * 
+	 * switch(i)
+	 *    int i=2; // not allowed in C99 : a declaration is no statement
+	 * 	
+	 * do
+	 *    int i=2; // not allowed in C99 : a declaration is no statement
+	 * while(!i);
+	 * 
+	 * while (i--)
+	 *    int i=2; // not allowed in C99 : a declaration is no statement
+	 * 
+	 * for (i=3;i>0;i--)
+	 *    int i; // not allowed in C99 : a declaration is no statement
+	 * 
+	 * will result in parsing errors, as the C99 grammar does not allow such
+	 * constructions.
+	 */
+	CompoundStatement:Statement ::= Statement*;
+
+	abstract ConditionalControlFlowStatement:Statement ::= Condition:Expression Body:Statement;
+
+		IfStatement:ConditionalControlFlowStatement ::= [Alternative:Statement];
+		SwitchStatement:ConditionalControlFlowStatement;
+		WhileStatement:ConditionalControlFlowStatement;
+		DoWhileStatement:ConditionalControlFlowStatement;
+
+		/**
+		 * REWRITE: If for statements have an empty condition, the condition is
+		 * true [6.8.5.3:2] S.136. E.g.:
+		 * 
+		 * for(expr1;;expr2) --> for(expr1; 1 ;expr2)
+		 *
+		 * and
+		 * 
+		 * for(decl;;expr) --> for(decl; 1 ;expr)
+		 */
+		ForStatement:ConditionalControlFlowStatement ::= [Initialization:Expression] [Iteration:Expression];
+		ForStatement_Decl:ConditionalControlFlowStatement ::= [Initialization:_IntermediateDeclarationCollection] [Iteration:Expression];
+
+	abstract JumpStatement:Statement;
+
+		GotoJump:JumpStatement ::= Label:Identifier;
+		ContinueJump:JumpStatement;
+		BreakJump:JumpStatement;
+		ReturnJump:JumpStatement ::= [Result:Expression];
+
+	abstract LabeledStatement:Statement ::= Continuation:Statement;
+	
+		ExplicitLabeledStatement:LabeledStatement ::= Label:Identifier;
+		
+		abstract SwitchLabelStatement:LabeledStatement;
+		
+			CaseLabel:SwitchLabelStatement ::= Condition:Expression;
+			DefaultLabel:SwitchLabelStatement;
+
+/* ***************************************************** Expressions [A.2.1] S.409 ***************************************************** */
+
+abstract Expression;
+	
+	// Constant expressions are defined above under the "Terminals" section.
+	
+	CommaExpression:Expression ::= Expression*;
+	Variable:Expression ::= Name:Identifier;
+	Cast:Expression ::= Type:_IntermediateType Operand:Expression;
+	FunctionCall:Expression ::= FunctionObject:Expression Arguments:Expression*;
+	
+	CompoundLiteral:Expression ::= Type:_IntermediateType Values:Initializer;
+	
+	/**
+	 * A DesignatorAccess's designation of an InitializerElement is implicit given,
+	 * thus no designation child will be added.
+	 * 
+	 * REWRITE: Computing and adding the implicit given designation of
+	 * DesignatorAccess nodes of InitializerElements.
+	 * 
+	 * PARSER CONSTRAINT: The parser guarantees, that the designation is only left
+	 * for the DesignatorAccess's of InitializerElements. All other
+	 * DesignatorAccess's must have a designation.
+	 */
+	abstract DesignatorAccess:Expression ::= [Designation:Expression];
+		/**
+		 * The Designation of a MemberAccess must be an expression of type Structure,
+		 * Union or Enum.
+		 * 
+		 * PARSER-CONSTRAINT / REWRITE: Parser rewrites the structure pointer
+		 * operator [->]. It does not occur in the AST. Instead it is rewritten to
+		 * an indirection operation and a member access. E.g.:
+		 *
+		 * sp1->sp2->m
+		 *
+		 * is / will become
+		 *
+		 * (*((*sp1).sp2)).m
+		 * 
+		 *        MA
+		 *       /  \
+		 *      I   M:m
+		 *      |
+		 *     M A
+		 *    /   \
+		 *   I    M:sp2
+		 *   |
+		 *   V
+		 *   |
+		 *  N:sp1
+		 *
+		 * with : MA... MemberAccess
+		 *        I ... Indirection
+		 *        V ... Variable
+		 *        N ... Name
+		 *        M ... Member
+		 */
+		MemberAccess:DesignatorAccess ::= Member:Identifier;
+		/**
+		 * One of the designation expressions shall have type "pointer to object type"
+		 * the other shall have integer type [6.5.2.1:1] p.70.
+		 */
+		ArrayAccess:DesignatorAccess ::= Designation2:Expression;
+
+	/**
+	 * The sizeof operator shall not be applied to a function type, a
+	 * incomplete type or a bit field [6.5.3.4:1] S.80.
+	 * 
+	 * The operand of the sizeof operator is only evaluated, if it is a
+	 * variable length array (otherwise it is not evaluated) [6.5.3.4:2] S.80.
+	 */
+	abstract SizeOfExpression:Expression;
+
+		SizeOfObject:SizeOfExpression ::= Object:Expression;
+		SizeOfType:SizeOfExpression ::= Type:_IntermediateType;
+
+	/**
+	 * PARSER-CONSTRAINT: Parser guarantees correct AST construction, e.g.
+	 * a = b = c;
+	 * will be the tree
+	 *
+	 *      AE
+	 *     /  \
+	 *   V:a  AE
+	 *       /  \
+	 *     V:b  V:c
+	 *
+	 * and not
+	 *
+	 *      AE
+	 *     /  \
+	 *    AE  V:c
+	 *   /  \
+	 * V:a  V:b
+	 *
+	 * with : AE... AssignmentExpression
+	 *        V ... Variable
+	 */
+	abstract AssignmentExpression:Expression ::= lValue:Expression rValue:Expression;
+
+		NormalAssignment:AssignmentExpression;
+		MultiplyAssignment:AssignmentExpression;
+		DivideAssignment:AssignmentExpression;
+		ModuloAssignment:AssignmentExpression;
+		AdditionAssignment:AssignmentExpression;
+		SubtractionAssignment:AssignmentExpression;
+		LeftShiftAssignment:AssignmentExpression;
+		RightShiftAssignment:AssignmentExpression;
+		AndAssignment:AssignmentExpression;
+		ExclusiveOrAssignment:AssignmentExpression;
+		InclusiveOrAssignment:AssignmentExpression;
+
+	abstract UnaryExpression:Expression ::= Operand:Expression;
+
+		AdressOf:UnaryExpression;
+		Indirection:UnaryExpression;
+		PlusSign:UnaryExpression;
+		MinusSign:UnaryExpression;
+		OneComplement:UnaryExpression;
+		Negation:UnaryExpression;
+		IncrementBefore:UnaryExpression;
+		IncrementAfter:UnaryExpression;
+		DecrementBefore:UnaryExpression;
+		DecrementAfter:UnaryExpression;
+
+	abstract BinaryExpression:Expression ::= Operand1:Expression Operand2:Expression;
+
+		Multiplication:BinaryExpression;
+		Division:BinaryExpression;
+		Modulo:BinaryExpression;
+		Addition:BinaryExpression;
+		Subtraction:BinaryExpression;
+		LeftShift:BinaryExpression;
+		RightShift:BinaryExpression;
+		Lesser:BinaryExpression;
+		Greater:BinaryExpression;
+		LesserOrEqual:BinaryExpression;
+		GreaterOrEqual:BinaryExpression;
+		Equal:BinaryExpression;
+		NotEqual:BinaryExpression;
+		And:BinaryExpression;
+		ExclusiveOr:BinaryExpression;
+		InclusiveOr:BinaryExpression;
+		LogicalAnd:BinaryExpression;
+		LogicalOr:BinaryExpression;
+
+	abstract TernaryExpression:Expression ::= Condition:Expression Result1:Expression Result2:Expression;
+
+		/**
+		 * PARSER-CONSTRAINT: Parser guarantees correct AST construction, e.g.
+		 * a ? b ? c : d : e;
+		 * will be the tree
+		 *
+		 *              C E
+		 *            /  |  \
+		 *         V:a  C E  V:e
+		 *             / | \
+		 *            /  |  \
+		 *          V:b V:c V:d
+		 *
+		 * with : CE... ConditionalExpression
+		 *        V ... Variable
+		 * 
+		 * REWRITE: The expression type of Result1 and Result2 has to be the
+		 * same, thus one or both expressions may be promoted [6.5.15:5,6]
+		 * S. 90. Such a promotion will be represented by an explicit type
+		 * cast, which will be rewritten into the AST. E.g.:
+		 * 
+		 * int a; long b; a < b ? a : b;
+		 * 
+		 * will be rewritten to
+		 * 
+		 * int a; long b; a < b ? (long)a : b;
+		 */
+		ConditionalExpression:TernaryExpression;

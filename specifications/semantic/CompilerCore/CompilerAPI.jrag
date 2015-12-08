@@ -1,0 +1,677 @@
+/*
+	This program and the accompanying materials are made available under the
+	terms of the MIT license (X11 license) which accompanies this distribution.
+	
+	Author: Christoff Bürger
+*/
+
+/**
+ * The following aspects specify the functionallities each module of the
+ * compiler has to provide. The aspects are named like their corresponding modules.
+ */
+
+/**
+ * This aspect specifies the necessary attributes for nodes of the first JastAdd
+ * tree constructed, which have to be rewritten to final AST nodes. Such
+ * intermediate nodes represent concrete syntax and have to be mapped to final
+ * AST nodes. For details check the introduction comment in the 'C99AST.ast' and
+ * the 'ConcreteToAST.ast' specifications.
+ * 
+ * IMPORTANT: Intermediate node's names must start with an '_'. Final node's
+ * names must not start with an '_'.
+ */
+aspect ConcreteToASTMapping {
+	/**
+	 * Nodes representing Declarations have to be mapped:
+	 */
+	syn DeclarationCollection _IntermediateDeclarationCollection.RetrieveFinalNode();
+	eq _IntermediateDeclarationCollection.RetrieveFinalNode() {
+		throw new jastaddc.semantics.ConcreteToASTFailure(
+				this, DeclarationCollection.class);
+	}
+	eq DeclarationCollection.RetrieveFinalNode() = this;
+	
+	/**
+	 * Nodes representing Types have to be mapped:
+	 */
+	syn Type _IntermediateType.RetrieveFinalNode();
+	eq _IntermediateType.RetrieveFinalNode() {
+		throw new jastaddc.semantics.ConcreteToASTFailure(
+				this, Type.class);
+	}
+	eq Type.RetrieveFinalNode() = this;
+}
+
+/**
+ * This aspect specifies basic support methods for easy AST access. Other modules
+ * can reuse the support methods specified here for easier information retrieval.
+ * Non of the attributes specified here covers special or complicated compiler
+ * semantics. This module also supports the node access attributes for AST nodes,
+ * which require other AST nodes to compute their semantics.
+ */
+aspect AccessSupport {
+	/**
+	 * Provide functionality to to retrieve informations about declarations.
+	 */
+	// Constraint:
+	// (IsFunctionDeclaration() == true) ==> ((getType() instanceof FunctionType) == true)
+	syn boolean Declaration.IsFunctionDeclaration();
+	// Tells whether, the declaration tries to define a function or not. From the fact,
+	// that a function definition is given, it can NOT be concluded that a valid
+	// Declaration, which defines a function is given, thus:
+	// (IsFunctionDefinition() == true) =!=> (IsFunctionDeclaration() == true)
+	// To be sure, that a valid function definition is given (a function
+	// definition is given and the declaration declares a function type), one
+	// must check that the following holds:
+	// (IsFunctionDeclaration() && IsFunctionDefinition()) == true
+	syn boolean Declaration.IsFunctionDefinition();
+	// Constraints:
+	// (IsFunctionPrototyp() == true) ==> (IsFunctionDeclaration() == true)
+	// (IsFunctionPrototyp() == true) ==> (IsFunctionDefinition() == false)
+	syn boolean Declaration.IsFunctionPrototyp();
+	
+	/**
+	 * Provide functionality to decide if a function has no parameters or
+	 * has no parameter specification.
+	 */
+	syn boolean FunctionType.IsParameterlessFunction();
+	syn boolean FunctionType.IsWithoutParameterSpecification();
+	
+	/**
+	 * Provide functionality to retrieve informations about specifier/qualifier.
+	 */
+	syn boolean Declaration.IsSpecifiedBy(StorageClassSpecifier spec);
+	syn boolean Declaration.IsSpecifiedBy(FunctionSpecifier spec);
+	syn boolean Type.IsQualifiedBy(TypeQualifier qual);
+	
+	/**
+	 * Provide functionality to retrieve informations about pointer.
+	 */
+	syn boolean Pointer.IsFunctionPointer();
+	syn boolean Pointer.IsVoidPointer();
+	
+	/**
+	 * Provide functionallity to access certain ancestor nodes, important for
+	 * needed context informations.
+	 */
+	inh Enumeration EnumerationElement.EnumerationContainingElement();
+	inh StructuredType UnionOrStructureElement.StructuredTypeContainingMember();
+	// Returns null, if not:
+	inh Declaration FunctionType.IsPartOfFunctionDeclaration();
+	// Returns null, if not:
+	inh FunctionType Declaration.IsParameterDeclaration();
+	// Returns null, if no enclosing switch statement is given:
+	inh SwitchStatement Statement.FindEnclosingSwitchStatement();
+	// Return null, if no enclosing loop statement is given:
+	inh ConditionalControlFlowStatement Statement.FindEnclosingLoopStatement();
+	// Return null, if no enclosing function is given:
+	inh FunctionDefinitionInitializer Statement.FindEnclosingFunctionDefinition();
+	
+	/**
+	 * Always a node's semantics depend on another node, but the computation
+	 * on which node may fail because semantic constraints are not met
+	 * provide an attribute to access the node this node depends on. If
+	 * the node this one depends on does not exist, an error node of the
+	 * required type is returned.
+	 */
+	syn StructuredType MemberAccess.DesignationType();
+	syn Expression ArrayAccess.DesignationExpression();
+	syn Expression ArrayAccess.IndexExpression();
+	syn UnionOrStructureElement MemberAccess.MemberDeclaration();
+	
+	syn IOrdinaryNameDeclaration Variable.VariableDeclaration();
+	
+	syn Declaration TypedefTypeReference.ReferencedTypedefDeclaration();
+	syn Enumeration EnumTypeReference.ReferencedEnumerationType();
+	syn Structure StructureTypeReference.ReferencedStructureType();
+	syn Union UnionTypeReference.ReferencedUnionType();
+	
+	syn LabeledStatement GotoJump.ReferencedStatement();
+	syn ConditionalControlFlowStatement ContinueJump.ReferencedLoop();
+	syn ConditionalControlFlowStatement BreakJump.ReferencedConditionalControlFlowStatement();
+	syn FunctionDefinitionInitializer ReturnJump.ReferencedFunctionDefinition();
+	
+	syn SwitchStatement SwitchLabelStatement.AssociatedSwitchStatement();
+	
+	/**
+	 * Provide functionality to find all case and default labels of
+	 * a switch statement.
+	 */
+	coll java.util.List<LabeledStatement> SwitchStatement.AssociatedLabels()
+		[new java.util.LinkedList<LabeledStatement>()] with add;
+	
+	/**
+	 * Provide functionality to find all return statements of a function
+	 * definition.
+	 */
+	coll java.util.List<ReturnJump> FunctionDefinitionInitializer.AssociatedReturnJumps()
+		[new java.util.LinkedList<ReturnJump>()] with add;
+	
+	/**
+	 * The NodeAddress() attribute represents an AST node's unique Dewey notation
+	 * address. Hence, NodeAddresse objects are comparable, so it can be decided whether:
+	 *  - a node is an ancestor node of another node
+	 *  - a node is a successor node of another node
+	 *  - a node is in a subtree left to another node
+	 *  - a node is in a subtree right to another node
+	 */
+	inh jastaddc.semantics.NodeAddress ASTNode.NodeAddress();
+	
+	/**
+	 * Provide names for special ast nodes (e.g. structures, unions, enumerations),
+	 * even when the node has no explicit name in the source code, e.g. a structure
+	 * has no Tag:
+	 */
+	syn String Identifier.Name();
+	syn String EnumerationElement.Name();
+	syn String TagedType.Name();
+	syn String MemberAccess.MemberName();
+	syn String UnionOrStructureElement.Name();
+	syn String Variable.Name();
+	syn String Declaration.Name();
+	syn String LabeledStatement.Name();
+	syn String GotoJump.DestinationName();
+	syn String AtomicType.Name();
+	
+	/**
+	 * Provide functionality to print human readable type descriptions.
+	 */
+	syn String Type.ReadableTypeName();
+	
+	/**
+	 * Provide functionality to associate with each AST node a line and column
+	 * position in the source code.
+	 */
+	public Integer ASTNode.line = null;
+	public Integer ASTNode.column = null;
+	public String ASTNode.sourceName = null;
+	public int ASTNode.line() {
+		if (line != null)
+			return line;
+		if (getParent() != null)
+			return getParent().line();
+		return 0;
+	}
+	public int ASTNode.column() {
+		if (column != null)
+			return column;
+		if (getParent() != null)
+			return getParent().column();
+		return 0;
+	}
+	public String ASTNode.sourceName() {
+		if (sourceName != null)
+			return sourceName;
+		if (getParent() != null)
+			return getParent().sourceName();
+		return "§UNKNOWN SOURCE§";
+	}
+	public String ASTNode.sourceCodeLocation() {
+		return "(" + sourceName() +":"+ line() +";"+ column() +")";
+	}
+}
+
+/**
+ * The implicit information retrieval module has to support rewrites to
+ * add AST nodes/semantics given implicit by the definition of C99:
+ *  - the type of enumerations is always int, even it is not written down
+ *    explicit in C programs [6.7.2.2;3] S.105.
+ *  - if no value for an enumeration constant is given, it's value is 0,
+ *    if it is the first enumeration constant, otherwise it's value is
+ *    the value of the previous enumeration constant plus 1. [6.7.2.2;3] S.105.
+ */
+aspect ImplicitInformationRetrieval {
+	/**
+	 * Specifying equations for non terminal attributes representing
+	 * default tree parts:
+	 */
+	// Enumeration members have type int [6.7.2.2;3] S.105.
+	syn lazy _IntermediateType EnumerationElement.getType();
+	
+	/** REWRITES TO SPECIFY IN THIS MODULE: */
+	// Rewrite for EnumerationElements without a Value expression: [6.7.2.2;3] p.105
+}
+
+/**
+ * The name analysis module provides functionalities for
+ * - scoping rules (visibility of declarations)
+ * - extent (lifetime of variables and functions)
+ * - overloading classes (name space sets)
+ * thus to look up names in some name space.
+ * 
+ * C99 distinguishes 5 name spaces [Ref.4.2.4;Table 4-2] S.78.
+ * - preprocessor macro names
+ * - statement labels
+ * - structure, union and enumeration tags
+ * - component names (members)
+ * - other names (variables, functions, typedef names, enumeration constants)
+ * Each identifier is associated with a program entity, which is an entity of
+ * exactly one of the 5 sets above. The associated entity depends on the context
+ * in which the identifier is used. The same identifier may refer to different
+ * entities if it occurs in different contexts.
+ * 
+ * The name analysis provides for each name space methods to look up entities.
+ * This implies, that entities are only available in specific AST parts, their scope.
+ */
+aspect NameAnalysis {
+	/**
+	 * Provide functionality to search for ordinary names, thus variable,
+	 * function or typedef declarations or enumeration constants, which are in the scope
+	 * of an AST part (node) and have a given name.
+	 */
+	syn boolean ASTNode.IntroducesNewOrdinaryNameBlock();
+	syn ASTNode ASTNode.FindNodeIntroducingThisOrdinaryNameBlock();
+	syn java.util.List<IOrdinaryNameDeclaration> ASTNode.LookUpOrdinaryName(String name);
+	syn java.util.List<IOrdinaryNameDeclaration> ASTNode.LookUpOrdinaryName(
+			String name, jastaddc.semantics.NodeAddress upToAddress);
+	
+	Declaration implements IOrdinaryNameDeclaration;
+	EnumerationElement implements IOrdinaryNameDeclaration;
+	
+	/**
+	 * Provide functionality to search for labels
+	 * (except switch labels) of a given name.
+	 */
+	syn boolean ASTNode.IntroducesNewLabelBlock();
+	syn ASTNode ASTNode.FindNodeIntroducingThisLabelBlock();
+	syn java.util.List<LabeledStatement> ASTNode.LookUpLabel(String name);
+	
+	/**
+	 * Searchs for a member with a given name in a structured type.
+	 */
+	syn UnionOrStructureElement StructuredType.LookUpMember(String memberToFind);
+	
+	/**
+	 * Provide functionality to search for a structure, union or
+	 * enumeration tag, which is in the scope of an AST part (node)
+	 * and has a given name.
+	 */
+	syn boolean ASTNode.IntroducesNewTagBlock();
+	syn ASTNode ASTNode.FindNodeIntroducingThisTagBlock();
+	syn java.util.List<TagedType> ASTNode.LookUpTag(String name);
+	syn java.util.List<TagedType> ASTNode.LookUpTag(
+			String name, jastaddc.semantics.NodeAddress upToAddress);
+	
+	/**
+	 * Provide functionality to retrieve for each TagedType its real
+	 * type definition, thus it is possible to associate incomplete types
+	 * with their final type definitions. Keep in mind, that incomplete
+	 * types don't have to be defined (In this case null is returned).
+	 * For all constructs where an incomplete type must be defined it is
+	 * up to the construct to produce an error and if needed return an error
+	 * node. But in general a C program can still be correct even an arbitrary
+	 * number of incomplete types is never defined. If this attribute
+	 * returns a TagedType, it's type is the one of the node the attribute
+	 * is associated with, thus if called from an union node only null or
+	 * an union node can be returned.
+	 */
+	syn TagedType TagedType.FindCompleteTagedType();
+	
+	/**
+	 * Provide functionality to decide whether a TagedType is an
+	 * incomplete type or not.
+	 */
+	syn boolean TagedType.IsIncompleteType();
+	
+	/**
+	 * This interface is used to represent results of ordinary name look
+	 * ups. Ordinary names may be declared in Declaration nodes and
+	 * EnumerationElement nodes. Each node type, which might represent
+	 * an ordinary name declaration must implement this interface.
+	 */
+	public interface IOrdinaryNameDeclaration {
+		boolean IsErrorNode();
+		boolean hasBindedName();
+		Identifier getBindedName();
+		String Name();
+		_IntermediateType getType();
+	}
+	public boolean EnumerationElement.hasBindedName() {return true;}
+}
+
+aspect TypeAnalysis {
+	
+}
+
+/**
+ * This aspect specifies all the necessary attributes and methods an error handling
+ * module has to provide.
+ * 
+ * Two main tasks have to be realized:
+ *  - the construction of error nodes
+ *  - the association of errors with AST nodes
+ */
+aspect ErrorHandling {
+	/**
+	 * Support the construction of appropriate error nodes.
+	 * 
+	 * Error nodes are used as mock classes for attributes referencing other AST nodes.
+	 * Often semantic constraints for one language construct assume, that
+	 * another language construct exists. But for invalid programs the other
+	 * language construct may not exists. E.g. a variable may not be declared.
+	 * But for the type analysis the declaration of a variable in an expression
+	 * is looked up. Error nodes can be used to represent not existing AST references.
+	 * For each semantic constraint requiering some node in the AST to exist, an attribute
+	 * can be defined returning a reference to the node. If the semantic constraint is not
+	 * met, thus no referenced AST node exists, the attribute can instead return an error
+	 * node of the requiered type.
+	 */
+	syn Compilation ASTNode.CompilationRootNode() =
+		getParent().CompilationRootNode();
+	eq Compilation.CompilationRootNode() = this;
+	syn ErrorBuilder ASTNode.ErrorBuilder() =
+		CompilationRootNode().getErrorBuilder();
+	
+	inh boolean ASTNode.IsErrorNode();
+	
+	/**
+	 * IMPORTANT: Do NEVER add the error node returned to any AST, thus
+	 * it must not become an AST part. The construction process is specified
+	 * to be lazy, thus caching is used and the same node may be returned
+	 * several times instead of constructing each time a new node!
+	 */
+	syn lazy ASTNode ErrorBuilder.ConstructErrorNode(Class nodeType);
+	
+	/**
+	 * Adds an error to the list of errors associated with this AST node.
+	 */
+	syn boolean ASTNode.addError(jastaddc.SourceError error);
+	
+	/**
+	 * Returns an iterator above all the errors of this complete (sub)tree,
+	 * thus the errors of this AST node and it's sub nodes.
+	 */
+	syn java.util.Iterator<jastaddc.SourceError> ASTNode.collectAllErrorsOfTree();
+	
+	/**
+	 * Returns a collection of all the errors for this node.
+	 */
+	syn java.util.Collection<jastaddc.SourceError> ASTNode.collectAllErrorsOfNode();
+	
+	/**
+	 * Returns the AST node the given error is associated with, if the AST node
+	 * is this node or a node of this nodes subtree. If the associated AST node
+	 * is not found, null is returned.
+	 */
+	syn ASTNode ASTNode.findNodeInSubtreeErrorIsAssociatedWith(jastaddc.SourceError error);
+}
+
+/**
+ * The constraint verification module provides functionality to decide for
+ * any C program, whether it satisfies all semantic constraints or not, thus
+ * it supports methods to do a semantic evaluation of the complete AST,
+ * for any subtree or even for a single AST node.
+ * 
+ * The distribution of semantic constraints across the AST, thus their implementation
+ * as IsCorrectLocal() attribute in different AST nodes has to ensure, that all semantic
+ * constraints are covered. Thus a call of the IsCorrect() method of the AST's root node
+ * will result in a check of all semantic constraints. Still, each semantic constraint
+ * will be associated with one AST node type.
+ * 
+ * For each AST node type with semantic constraints an equation for the IsCorrectLocal()
+ * attribute will be defined. Semantics constraints of one AST node may depend on
+ * arbitrary other AST nodes specified by complex computations with their own semantic
+ * constraints. Such needed nodes are accessed by attribute methods, which may fail in
+ * which case error nodes are returned.
+ * 
+ * IMPORTANT: If during the constraint verification an intermediate node is encountered,
+ * an implementation error is given, thus it is not decided whether the node satisfies
+ * all it's constraints. Instead a {@link jastaddc.semantics.ConcreteToASTFailure}
+ * exception is thrown (which is a subclass of RuntimeException).
+ */
+aspect ConstraintVerification {
+	/**
+	 * Handles the traversion of the AST to verify all constraints for a given
+	 * node AND it's sub nodes.
+	 */
+	syn boolean ASTNode.IsCorrect();
+	
+	/**
+	 * This attribute handles the semantic constraint verification for one
+	 * AST node, without traversing the tree, thus sub nodes may still be
+	 * incorrect when isCorrectLocal() returns true. In this case it's only
+	 * guaranteed that this AST node's semantic constraints are satisfied.
+	 */
+	syn boolean ASTNode.IsCorrectLocal();
+}
+
+/**
+ * This aspect specifies support methods/classes/interfaces avaible for
+ * all modules. Each entity of this aspect is completely defined and ready
+ * to use.
+ */
+aspect Support {
+	/**
+	 * Support the construction of reference nodes to taged types:
+	 */
+	syn Type TagedType.buildQualifiedReference();
+	eq Enumeration.buildQualifiedReference() =
+		new EnumTypeReference(buildTypeQualifierCopy(), new Identifier(Name()));
+	eq Structure.buildQualifiedReference() =
+		new StructureTypeReference(buildTypeQualifierCopy(), new Identifier(Name()));
+	eq Union.buildQualifiedReference() =
+		new UnionTypeReference(buildTypeQualifierCopy(), new Identifier(Name()));
+	
+	syn List<TypeQualifier> TagedType.buildTypeQualifierCopy() {
+		List<TypeQualifier> result = new List<TypeQualifier>();
+		for (int i = 0; i < getNumTypeQualifier(); i++)
+			result.add((TypeQualifier)getTypeQualifier(i).copy());
+		return result;
+	}
+	
+	/**
+	 * This class allows to filter collections by a given criteria.
+	 * The result is a new collection containing only elements which
+	 * passed the given criteria.
+	 * 
+	 * This class is useful in combination with collection attributes.
+	 */
+	public class ListFilter {
+		public static <E> java.util.List<E> filter(
+				java.util.List<E> toFilter, AFilterCriteria<E> filterToUse) {
+			java.util.List<E> result =
+				new java.util.ArrayList<E>();
+			for (E elem:toFilter) {
+				if (filterToUse.passed(elem))
+					result.add(elem);
+			}
+			return result;
+		}
+		/**
+		 * Instances of this interface represent collection filter
+		 * criteria. A collection filter may depend on another collection
+		 * filter, thus for an element to pass this filter it has to pass
+		 * the filter this one depends on also.
+		 */
+		public static abstract class AFilterCriteria<T> {
+			protected AFilterCriteria<T> additionalFilter;
+			public AFilterCriteria() {additionalFilter = null;}
+			public AFilterCriteria(AFilterCriteria<T> additionalFilter) {
+				this.additionalFilter = additionalFilter;
+			}
+			public boolean isBasedOnOtherFilter() {return additionalFilter != null;}
+			public void setAdditionalFilter(AFilterCriteria<T> criteria) {
+				additionalFilter = criteria;
+			}
+			public boolean passed(T elem) {
+				return additionalFilter != null ?
+						additionalFilter.passed(elem) && _passed(elem) : _passed(elem);
+			}
+			public abstract boolean _passed(T elem);
+		}
+	}
+	
+	/**
+	 * Support filters for lists of looked up entities:
+	 */
+	
+	/**
+	 * Filter a collection of AST nodes by their location retrieving
+	 * only the nodes located before the given address.
+	 */
+	public class AddressFilter<T extends ASTNode> extends ListFilter.AFilterCriteria<ASTNode<T>> {
+		private jastaddc.semantics.NodeAddress upToAddress;
+		public AddressFilter(ListFilter.AFilterCriteria<ASTNode<T>> filterThisOneDependsOn,
+				jastaddc.semantics.NodeAddress upToAddress) {
+			super(filterThisOneDependsOn);
+			this.upToAddress = upToAddress;
+		}
+		public AddressFilter(jastaddc.semantics.NodeAddress upToAddress) {
+			super();
+			this.upToAddress = upToAddress;
+		}
+		public boolean _passed(ASTNode elem) {
+			return elem.NodeAddress().compareTo(upToAddress) > 0 ||
+				elem.NodeAddress().isSuccessor(upToAddress) ||
+				elem.NodeAddress().equals(upToAddress) ;
+		}
+	}
+	
+	/**
+	 * Filter a collection of tag entities discarding all entities
+	 * with unequal name.
+	 */
+	public class TagNameFilter extends ListFilter.AFilterCriteria<TagedType> {
+		private String name;
+		public TagNameFilter(ListFilter.AFilterCriteria<TagedType> filterThisOneDependsOn,
+				String name) {
+			super(filterThisOneDependsOn);
+			this.name = name;
+		}
+		public TagNameFilter(String name) {
+			super();
+			this.name = name;
+		}
+		public boolean _passed(TagedType elem) {
+			return elem.Name().equals(name);
+		}
+	}
+	
+	/**
+	 * Filter a collection of tag entities, retrieving only the entities
+	 * being not incomplete.
+	 */
+	public class CompleteTagedTypeFilter extends ListFilter.AFilterCriteria<TagedType> {
+		public CompleteTagedTypeFilter(ListFilter.AFilterCriteria<TagedType> filterThisOneDependsOn) {
+			super(filterThisOneDependsOn);
+		}
+		public CompleteTagedTypeFilter() {super();}
+		public boolean _passed(TagedType elem) {
+			return !elem.IsIncompleteType();
+		}
+	}
+	
+	/**
+	 * Filter a collection of tag entities, retrieving only the entities
+	 * being of some special type (qualified class name) or not being of the
+	 * given type (depending on the boolean value of the constructors equal parameter).
+	 */
+	public class TagedTypeTypeFilter extends ListFilter.AFilterCriteria<TagedType> {
+		private String classNameOfTypeToFilter;
+		private boolean equal;
+		public TagedTypeTypeFilter(ListFilter.AFilterCriteria<TagedType> filterThisOneDependsOn,
+				String classNameOfTypeToFilter, boolean equal) {
+			super(filterThisOneDependsOn);
+			this.classNameOfTypeToFilter = classNameOfTypeToFilter;
+			this.equal = equal;
+		}
+		public TagedTypeTypeFilter(String classNameOfTypeToFilter, boolean equal) {
+			super();
+			this.classNameOfTypeToFilter = classNameOfTypeToFilter;
+			this.equal = equal;
+		}
+		public boolean _passed(TagedType elem) {
+			return elem.getClass().getName().equals(classNameOfTypeToFilter) == equal;
+		}
+	}
+	
+	/**
+	 * Filter a collection of label entities discarding all entities
+	 * with unequal name.
+	 */
+	public class LabelNameFilter extends ListFilter.AFilterCriteria<LabeledStatement> {
+		private String name;
+		public LabelNameFilter(ListFilter.AFilterCriteria<LabeledStatement> filterThisOneDependsOn,
+				String name) {
+			super(filterThisOneDependsOn);
+			this.name = name;
+		}
+		public LabelNameFilter(String name) {
+			super();
+			this.name = name;
+		}
+		public boolean _passed(LabeledStatement elem) {
+			return elem.Name().equals(name);
+		}
+	}
+	
+	/**
+	 * Filter a collection of ordinary name space entities discarding
+	 * all entities with unequal name.
+	 */
+	public class OrdinaryNameFilter extends ListFilter.AFilterCriteria<IOrdinaryNameDeclaration> {
+		private String name;
+		public OrdinaryNameFilter(ListFilter.AFilterCriteria<IOrdinaryNameDeclaration> filterThisOneDependsOn,
+				String name) {
+			super(filterThisOneDependsOn);
+			this.name = name;
+		}
+		public OrdinaryNameFilter(String name) {
+			super();
+			this.name = name;
+		}
+		public boolean _passed(IOrdinaryNameDeclaration elem) {
+			return elem.Name().equals(name);
+		}
+	}
+	
+	/**
+	 * Filter a collection of ordinary name space entities discarding
+	 * all entities which are function prototyps and have an
+	 * equal function signature.
+	 */
+	public class FunctionPrototypFilter extends ListFilter.AFilterCriteria<IOrdinaryNameDeclaration> {
+		private FunctionType signatureToFilter;
+		public FunctionPrototypFilter(ListFilter.AFilterCriteria<IOrdinaryNameDeclaration> filterThisOneDependsOn,
+				FunctionType signatureToFilter) {
+			super(filterThisOneDependsOn);
+			this.signatureToFilter = signatureToFilter;
+		}
+		public FunctionPrototypFilter(FunctionType signatureToFilter) {
+			super();
+			this.signatureToFilter = signatureToFilter;
+		}
+		public boolean _passed(IOrdinaryNameDeclaration elem) {
+			return elem instanceof Declaration ?
+					(((Declaration)elem).IsFunctionPrototyp() ?
+							!((FunctionType)elem.getType().RetrieveFinalNode()).IsIdenticalFunctionType(signatureToFilter) :
+							true) :
+					true;
+		}
+	}
+	
+	/**
+	 * Filter a collection of ordinary name space entities discarding
+	 * all entities which are function declarations and have an
+	 * equal function signature.
+	 */
+	public class FunctionDeclarationFilter extends ListFilter.AFilterCriteria<IOrdinaryNameDeclaration> {
+		private FunctionType signatureToFilter;
+		public FunctionDeclarationFilter(ListFilter.AFilterCriteria<IOrdinaryNameDeclaration> filterThisOneDependsOn,
+				FunctionType signatureToFilter) {
+			super(filterThisOneDependsOn);
+			this.signatureToFilter = signatureToFilter;
+		}
+		public FunctionDeclarationFilter(FunctionType signatureToFilter) {
+			super();
+			this.signatureToFilter = signatureToFilter;
+		}
+		public boolean _passed(IOrdinaryNameDeclaration elem) {
+			return elem instanceof Declaration ?
+					(((Declaration)elem).IsFunctionDeclaration() ?
+							!((FunctionType)elem.getType().RetrieveFinalNode()).IsIdenticalFunctionType(signatureToFilter) :
+							true) :
+					true;
+		}
+	}
+}

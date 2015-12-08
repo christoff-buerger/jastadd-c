@@ -1,0 +1,142 @@
+/*
+	This program and the accompanying materials are made available under the
+	terms of the MIT license (X11 license) which accompanies this distribution.
+	
+	Author: Christoff Bürger
+*/
+
+/**
+ * The aspect ErrorHandling offers all the functionality expected from the
+ * error handling module.
+ * 
+ * Check the general notes about this error handling module as well as the
+ * desriptions of the requirements for error handling modules for additional
+ * informations about the attribute definitions given here and their interaction.
+ */
+aspect ErrorHandling {
+	/**
+	 * Specify that nodes in the error tree represent error nodes and deactivate
+	 * the AST tree validation and constraint checking for the error tree:
+	 */
+	syn boolean Compilation.IsErrorNode() = false;
+	eq Compilation.getErrorBuilder().IsErrorNode() = true;
+	eq Compilation.getTranslationUnit().IsErrorNode() = false;
+	eq DefaultErrorBuilder.IsCorrect() = true;
+	
+	/**
+	 * Provide the different error node building functionalities:
+	 */
+	coll java.util.List<ASTNode> ErrorBuilder.ErrorNodes()
+		[new java.util.LinkedList<ASTNode>()] with add;
+	ASTNode contributes this when IsErrorNode() to ErrorBuilder.ErrorNodes()
+		for ErrorBuilder();
+	
+	eq DefaultErrorBuilder.ConstructErrorNode(Class nodeType) =
+		ListFilter.filter(
+				ErrorNodes(),
+				new ASTNodeTypeFilter(nodeType)).get(0);
+	
+	/**
+	 * Filter a collection of AST nodes by their class type retrieving
+	 * only nodes of a given type.
+	 */
+	public class ASTNodeTypeFilter extends ListFilter.AFilterCriteria<ASTNode> {
+		private Class typeToFilter;
+		public ASTNodeTypeFilter(ListFilter.AFilterCriteria<ASTNode> filterThisOneDependsOn,
+				Class typeToFilter) {
+			super(filterThisOneDependsOn);
+			this.typeToFilter = typeToFilter;
+		}
+		public ASTNodeTypeFilter(Class typeToFilter) {
+			super();
+			this.typeToFilter = typeToFilter;
+		}
+		public boolean _passed(ASTNode elem) {
+			return typeToFilter.isInstance(elem);
+		}
+	}
+	
+	/**
+	 * Implementation of the error traversing and association methods:
+	 */
+	protected java.util.ArrayList<jastaddc.SourceError> ASTNode.errors =
+		new java.util.ArrayList<jastaddc.SourceError>();
+	eq ASTNode.addError(jastaddc.SourceError error) {
+		if (error == null)
+			return false;
+		if (!errors.contains(error)) { // Has the error been encountered before?
+			errors.add(error);
+			return true;
+		}
+		return false;
+	}
+	eq ASTNode.findNodeInSubtreeErrorIsAssociatedWith(jastaddc.SourceError error) {
+		if (errors.contains(error))
+			return this;
+		for (int i = 0; i < getNumChild(); i++) {
+			ASTNode result = getChild(i).findNodeInSubtreeErrorIsAssociatedWith(error);
+			if (result != null)
+				return result;
+		}
+		return null;
+	}
+	eq ASTNode.collectAllErrorsOfTree() {
+		FlattingIterator result =
+			new FlattingIterator<jastaddc.SourceError>(errors.iterator(), getNumChild() + 1);
+		for (int i = 0; i < getNumChild(); i++) {
+			result.addIterator(getChild(i).collectAllErrorsOfTree());
+		}
+		return result;
+	}
+	eq ASTNode.collectAllErrorsOfNode() = errors;
+	
+	/**
+	 * Class used to flatten a collection and iterate above all the non
+	 * collection elements contained in it. To flatten a collection means, to
+	 * treat the set of elements in the collection as the set containing all
+	 * the non collection elements in this collection unified with all the
+	 * non collection elements contained in this collection's collection
+	 * elements. This pattern is recursively applied. Here all the collections
+	 * forming the final flat set are represented by an iterator. The
+	 * {@link FlattingIterator} than iterates above all the added iterator's
+	 * elements. By adding {@link FlattingIterator}s the nesting of collections
+	 * can be handeled.
+	 */
+	public class FlattingIterator<E> implements java.util.Iterator<E> {
+		private int listPosition;
+		private java.util.List<java.util.Iterator<E>> iteratorsToProceed;
+		
+		public FlattingIterator(java.util.Iterator<E> thisErrors, int initSize) {
+			iteratorsToProceed =
+				new java.util.ArrayList<java.util.Iterator<E>>(initSize);
+			iteratorsToProceed.add(thisErrors);
+			listPosition = 0;
+		}
+		
+		public void addIterator(java.util.Iterator<E> iter) {
+			iteratorsToProceed.add(iter);
+		}
+		
+		public boolean hasNext() {
+			if (listPosition >= iteratorsToProceed.size())
+				return false;
+			while (!iteratorsToProceed.get(listPosition).hasNext()) {
+				listPosition++;
+				if (listPosition >= iteratorsToProceed.size())
+					return false;
+			}
+			return true;
+		}
+		
+		public E next() {
+			E result = iteratorsToProceed.get(listPosition).next();
+			if (!iteratorsToProceed.get(listPosition).hasNext())
+				listPosition++;
+			return result;
+		}
+		
+		public void remove() {
+			iteratorsToProceed.get(listPosition).remove();
+		}
+	}
+}

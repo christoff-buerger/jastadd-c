@@ -1,0 +1,33 @@
+/*
+	This program and the accompanying materials are made available under the
+	terms of the MIT license (X11 license) which accompanies this distribution.
+	
+	Author: Christoff Bürger
+*/
+
+aspect Names {
+	eq Identifier.Name() = getValue() == null ? "" : getValue();
+	eq EnumerationElement.Name() = getBindedName().Name();
+	eq MemberAccess.MemberName() = getMember().Name();
+	eq Enumeration.Name() =
+		hasTag() ? getTag().Name() : "§Anonymous Enumeration Type "+ NodeAddress().toString() +"§";
+	eq Structure.Name() =
+		hasTag() ? getTag().Name() : "§Anonymous Structure Type "+ NodeAddress().toString() +"§";
+	eq Union.Name() =
+		hasTag() ? getTag().Name() : "§Anonymous Union Type "+ NodeAddress().toString() +"§";
+	eq NormalUnionOrStructureElement.Name() = getName().Name();
+	eq BitField.Name() =
+		hasName() ? getName().Name(): "§Anonymous Bitfield "+ NodeAddress().toString() +"§";
+	eq Variable.Name() = getName().Name();
+	eq Declaration.Name() =
+		hasBindedName() ? getBindedName().Name() : "§Anonymous Declaration "+ NodeAddress().toString() +"§";
+	eq GotoJump.DestinationName() = getLabel().Name();
+	eq ExplicitLabeledStatement.Name() = getLabel().Name();
+	eq CaseLabel.Name() = "case";
+	eq DefaultLabel.Name() = "default";
+	eq PrimitiveType.Name() = getType().typeName();
+	eq TypedefTypeReference.Name() = getReferenceName().Name();
+	eq StructureTypeReference.Name() = getReferenceName().Name();
+	eq UnionTypeReference.Name() = getReferenceName().Name();
+	eq EnumTypeReference.Name() = getReferenceName().Name();
+}

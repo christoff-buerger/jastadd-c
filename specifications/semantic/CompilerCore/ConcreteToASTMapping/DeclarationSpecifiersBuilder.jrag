@@ -85,7 +85,7 @@ aspect DeclarationSpecifiersBuilder {
 			}
 			PrimitiveTypesLexer primitiveTypeLexer =
 				new PrimitiveTypesLexer(
-						new java.io.StringBufferInputStream(primitiveTypeLexem.toString()));
+						new java.io.StringReader(primitiveTypeLexem.toString()));
 			while (true) {
 				try {
 					jastaddc.semantics.PrimitiveTypes primitiveType = primitiveTypeLexer.createBasicType();

@@ -7,9 +7,9 @@
 -->
 <project name="jastadd-c" default="generate" basedir=".">
 	<taskdef
-		classname = "JFlex.anttask.JFlexTask"
+		classname = "jflex.anttask.JFlexTask"
 		name      = "jflex"
-		classpath = "sources/libraries/JFlex.jar"
+		classpath = "sources/libraries/jflex.jar"
 	/>
 	<taskdef
 		name      = "beaver"

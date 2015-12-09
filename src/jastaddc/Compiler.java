@@ -11,9 +11,9 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 
-import jastaddc.symbols.lexicalanalyse.CLexicalAnalyser;
-import jastaddc.syntax.syntacticalanalyse.CParser;
-import jastaddc.semantics.ast.TranslationUnit;
+import jastaddc.symbols.CLexicalAnalyser;
+import jastaddc.syntax.CParser;
+import jastaddc.semantics.TranslationUnit;
 
 /**
  * Class representing a C99 compiler front end, realizing the lexical, syntactical
@@ -60,9 +60,6 @@ public class Compiler {
 	 * {@link ConfigurationException}s are thrown, if the compiler can not be
 	 * executed successful. They are technical issue related. They are never thrown
 	 * because of erroneous source code.
-	 *  
-	 * @author C. Bürger
-	 *
 	 */
 	public static class ConfigurationException extends Exception {
 		public static final long serialVersionUID = 1L;

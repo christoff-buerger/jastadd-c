@@ -11,3 +11,5 @@
 **/src-gen
 # Ignore generated object & binary directories:
 **/bin
+# Ignore generated jars:
+jastaddc.jar

@@ -7,7 +7,7 @@
 
 package jastaddc.semantics;
 
-import jastaddc.semantics.ast.ASTNode;
+import jastaddc.semantics.ASTNode;
 
 /**
  * This execptions are thrown, if a JastAddC AST has not been mapped to it's final

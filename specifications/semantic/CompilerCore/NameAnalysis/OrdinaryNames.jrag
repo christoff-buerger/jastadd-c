@@ -30,7 +30,7 @@ aspect OrdinaryNames {
 				blockNode.LocalOrdinaryNameDeclarations(),
 				new AddressFilter((ListFilter.AFilterCriteria)new OrdinaryNameFilter(name), upToAddress));
 		return !result.isEmpty() ? result : (blockNode.getParent() == null ?
-					new java.util.ArrayList<TagedType>(0) :
+					new java.util.ArrayList<IOrdinaryNameDeclaration>(0) :
 					blockNode.getParent().LookUpOrdinaryName(name, upToAddress));
 	}
 	

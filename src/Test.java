@@ -8,7 +8,7 @@
 import java.util.Iterator;
 
 import jastaddc.SourceError;
-import jastaddc.semantics.ast.*;
+import jastaddc.semantics.*;
 
 public class Test {
 	public static void main(String[] args) {

@@ -1,11 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <!--
 	This program and the accompanying materials are made available under the
 	terms of the MIT license (X11 license) which accompanies this distribution.
 	
 	Author: Christoff Bürger
 -->
-
-<project name="JastAddC_All" default="gen" basedir=".">
+<project name="jastadd-c" default="generate" basedir=".">
 	<taskdef
 		classname = "JFlex.anttask.JFlexTask"
 		name      = "jflex"
@@ -17,12 +17,13 @@
 		classpath = "sources/libraries/beaver.jar"
 	/>
 	<taskdef
-		classname = "jastadd.JastAddTask"
+		classname = "org.jastadd.JastAddTask"
 		name      = "jastadd"
 		classpath = "sources/libraries/jastadd2.jar"
 	/>
 
-	<target name="gen">
+	<target name="generate">
+		<mkdir dir="src-gen"/>
 		<!-- Syntax Analyses -->
 		<jflex
 			file    = "specifications/symbols/CCharacterMapper_.jflex"
@@ -85,14 +86,45 @@
 				<include name = "specifications/semantic/**/*.ast"/>
 				<include name = "specifications/semantic/**/*.jrag"/>
 				<include name = "specifications/semantic/**/*.jadd"/>
-				<include name = "testing/jastaddc/tests/syntax/**/*.jrag"/>
 			</fileset>
 		</jastadd>
 	</target>
 	
+	<target name="compile">
+		<mkdir dir="bin"/>
+		<javac
+			srcdir="src:src-gen"
+			destdir="bin"
+			includeantruntime="false">
+			<classpath>
+				<fileset dir="sources/libraries" includes="**/*.jar"/>
+			</classpath>
+		</javac>
+	</target>
+	
+	<target name="jar" depends="compile">
+		<jar destfile="jastaddc.jar" index="false" update="false" compress="false">
+			<manifest>
+				<attribute name="Created-By" value="https://github.com/christoff-buerger/jastadd-c"/>
+				<attribute name="Main-Class" value="jastaddc.Compiler"/>
+			</manifest>
+			<zipfileset src="sources/libraries/beaver-rt.jar">
+				<exclude name="META-INF/**"/>
+			</zipfileset>
+			<fileset dir="." includes="license.txt"/>
+			<fileset dir="bin">
+				<include name="**/*.class"/>
+			</fileset>
+		</jar>
+	</target>
+
 	<target name="clean">
 		<delete includeemptydirs="true">
 			<fileset dir="src-gen" includes="**/*"/>
 		</delete>
+		<delete includeemptydirs="true">
+			<fileset dir="bin" includes="**/*"/>
+		</delete>
+		<delete file="jastaddc.jar"/>
 	</target>
 </project>

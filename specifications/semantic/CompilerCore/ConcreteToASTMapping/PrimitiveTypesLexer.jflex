@@ -49,7 +49,7 @@
  * of invalid basic types.
  */
 
-package jastaddc.semantics.ast;
+package jastaddc.semantics;
 
 import jastaddc.SourceError;
 

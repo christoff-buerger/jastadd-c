@@ -68,4 +68,4 @@ LineTerminator = \r|\n|\r\n|\u2028|\u2029|\u000B|\u000C|\u0085 /* line terminati
 %% //***************************Lexical rules***************************
 
 "\\"{LineTerminator}		{}
-.|\n						{return yytext().codePointAt(0);}
+[^]						{return yytext().codePointAt(0);}

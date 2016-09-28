@@ -132,7 +132,7 @@ HexadecimalDigit = [0-9]|[A-F]|[a-f]
    except we don't allow an escape sign (\) to occur */
 [^\\]						{lexem.append(yytext());}
 
-.|\n			{
+[^]			{
 					throw new CUnknownTokenException(yyline,
 							yycolumn,
 							yytext(),

@@ -90,7 +90,6 @@ import jastaddc.semantics.PrimitiveTypes;
 //macro declarations
 /* Line termination for full unicode support; (\n == \u000A) (\r == \u000D) (\r\n == \u000D\\u000A) */
 LineTerminator = \r|\n|\r\n|\u2028|\u2029|\u000B|\u000C|\u0085
-InputCharacter = [^\r\n]
 WhiteSpace = {LineTerminator} | [ \t\f\u000B] /* in unicode \u000B is the vertical tabulator \v */
 
 %% //***************************Lexical rules***************************
@@ -241,7 +240,7 @@ WhiteSpace = {LineTerminator} | [ \t\f\u000B] /* in unicode \u000B is the vertic
 			return PrimitiveTypes._long_double__Complex;
 		}
 	
-	.|\n
+	[^]
 		{
 			throw new SourceError("Unknown primitive type ["+ yytext() +"].");
 		}

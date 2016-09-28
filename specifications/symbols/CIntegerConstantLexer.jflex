@@ -72,24 +72,24 @@ hexadecimalDigit = [0-9]|[A-F]|[a-f]
 
 /**
 * States starting with OPTIONAL_ may be skipped, thus they have an alternative rule
-* .|\n accepting every input sign, which they push back into the input and instead do
+* [^] accepting every input sign, which they push back into the input and instead do
 * a state transition to the next lexer state.
 *
 * If input signs are successful matched in a state and the input is empty afterwards,
 * the complete lexing has been successful. To force, that additional input signs have
-* to follow successful matched input signs, rules with REGULEXPRESSION(.|\n) and
+* to follow successful matched input signs, rules with REGULEXPRESSION([^]) and
 * yypushback(1); can be used. These rules only match, if additional input follows
 * REGULEXPRESSION.
 */
 
 <YYINITIAL> {
-	("0x"(.|\n))|("0X"(.|\n))	{
+	("0x"([^]))|("0X"([^]))	{
 									yypushback(1);
 									lexem.append(yytext());
 									radix = new NumeralSystemHexadecimal();
 									yybegin(HEX_VALUE);
 								}
-	"0"(.|\n)					{
+	"0"([^])					{
 									yypushback(1);
 									lexem.append(yytext());
 									radix = new NumeralSystemOctal();
@@ -123,7 +123,7 @@ hexadecimalDigit = [0-9]|[A-F]|[a-f]
 									numericValue = yytext();
 									yybegin(SUFFIX);
 								}
-	.|\n						{
+	[^]						{
 									yypushback(1);
 									numericValue = "0";
 									yybegin(SUFFIX);
@@ -161,7 +161,7 @@ hexadecimalDigit = [0-9]|[A-F]|[a-f]
 }
 
 <DONE> {
-	.|\n						{
+	[^]						{
 									throw new CUnknownTokenException(embedded_Line,
 										embedded_Column,
 										lexem.toString(),
@@ -169,7 +169,7 @@ hexadecimalDigit = [0-9]|[A-F]|[a-f]
 								}
 }
 
-.|\n						{
+[^]						{
 								throw new CUnknownTokenException(embedded_Line,
 									embedded_Column,
 									lexem.toString(),

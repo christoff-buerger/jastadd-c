@@ -310,7 +310,7 @@ Identifier = ({LatinLetter} | "_")({LatinLetter} | "_" | {DecimalDigit})*
 	{WhiteSpace}	{/* Ignore whitespace */}
 }
 
-.|\n			{
+[^]			{
 					throw new CUnknownTokenException(yyline,
 							yycolumn,
 							yytext());

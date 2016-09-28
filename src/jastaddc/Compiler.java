@@ -13,12 +13,12 @@ import java.io.IOException;
 
 import jastaddc.symbols.CLexicalAnalyser;
 import jastaddc.syntax.CParser;
-import jastaddc.semantics.TranslationUnit;
+import jastaddc.semantics.Compilation;
 
 /**
  * Class representing a C99 compiler front end, realizing the lexical, syntactical
  * and semantical analysis. The result of a successful compilation is an AST (to be exact
- * the root node TranslationUnit), annotated with attributes, which will be evaluated on
+ * the root node Compilation), annotated with attributes, which can be evaluated on
  * demand. No attribute of the AST has been demanded yet, thus no semantic evaluation has
  * been executed yet. It is up to the user of the AST to ask the attributes he's interested
  * in about their values, which will automatically trigger the appropriate evaluations. If
@@ -28,7 +28,35 @@ import jastaddc.semantics.TranslationUnit;
  */
 public class Compiler {
 	/**
-	 * Executes the compilation of of a source code file with the goal to retrieve an AST
+	 * Print the errors of a source file on standard out.
+	 *
+	 * @param args Singleton array containing the source file to compile.
+	 */
+	public static void main(String[] args) {
+		try {
+			if (args.length == 0) {
+				throw new ConfigurationException(
+					"No source file to compile specified.");
+			} else if (args.length > 1) {
+				throw new ConfigurationException(
+					"Unknown arguments; expected single source file to compile.");
+			} else {
+				Compilation ast = compile(new File(args[0]));
+				ast.IsCorrect();
+				java.util.Iterator<SourceError> errors = ast.collectAllErrorsOfTree();
+				if (!errors.hasNext())
+					System.out.println("No errors found.");
+				while (errors.hasNext()) {
+					System.out.println(errors.next().getMessage());
+				}
+			}
+		} catch (ConfigurationException e) {
+			System.out.println(e.getMessage());
+		}
+	}
+	
+	/**
+	 * Executes the compilation of a source code file with the goal to retrieve an AST
 	 * and return the AST's root node. Check the description of the {@link jastaddc.Compiler}
 	 * class for details.
 	 * 
@@ -39,16 +67,16 @@ public class Compiler {
 	 * technical errors occurred, thus the compiler can not be executed. It is never thrown
 	 * if the compiler has been executed successful, even if the source code contains errors.
 	 */
-	public TranslationUnit compile(File source) throws ConfigurationException {
+	public static Compilation compile(File source) throws ConfigurationException {
 		if (source == null)
 			throw new ConfigurationException("No source file to compile specified.");
 		
-		TranslationUnit result;
+		Compilation result;
 		try {
 			final String sourceName = source.getName();
 			CLexicalAnalyser lexer = new CLexicalAnalyser(new FileReader(source));
 			CParser parser = new CParser();
-			result = (TranslationUnit)parser.parse(lexer, sourceName);
+			result = parser.parse(lexer, sourceName);
 		} catch (IOException exc) {
 			throw new ConfigurationException(exc);
 		}

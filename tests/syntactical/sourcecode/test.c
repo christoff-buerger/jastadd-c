@@ -5,7 +5,7 @@ void func1(void) {
 
 void func2(void) {
 	Label2_1:;
-	enum enumTag {e = 1} enumVar;
+	enum enumTag {e = 1,} enumVar = e;
 	Label2_2:;
-	struct structTag {int i1; int i2;} structVar;
+	struct structTag {int i1; int i2;} structVar = {e, enumVar};
 }

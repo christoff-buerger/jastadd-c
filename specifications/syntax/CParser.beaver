@@ -67,7 +67,7 @@
 		report = new Events();
 	}
 
-	public TranslationUnit parse(Scanner lexer, String sourceName) throws Compiler.ConfigurationException {
+	public Compilation parse(Scanner lexer, String sourceName) throws Compiler.ConfigurationException {
 		TranslationUnit tunit = new TranslationUnit();
 		compilation = new Compilation(
 			tunit,
@@ -96,7 +96,7 @@
 		}
 		
 		tunit.setDeclarationList(decls);
-		return tunit;
+		return compilation;
 	}
 :};
 

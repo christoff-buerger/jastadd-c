@@ -86,4 +86,4 @@ import java.nio.charset.Charset;
 "??>"			{return (int)'}';}
 "??-"			{return (int)'~';}
 
-.|\n			{return yytext().codePointAt(0);}
+[^]			{return yytext().codePointAt(0);}

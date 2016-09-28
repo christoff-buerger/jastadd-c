@@ -88,12 +88,12 @@ hexadecimalDigit = [0-9]|[A-F]|[a-f]
 
 /**
 * States starting with OPTIONAL_ may be skipped, thus they have an alternative rule
-* .|\n accepting every input sign, which they push back into the input and instead do
+* [^] accepting every input sign, which they push back into the input and instead do
 * a state transition to the next lexer state.
 * 
 * If input signs are successful matched in a state and the input is empty afterwards,
 * the complete lexing has been successful. To force, that additional input signs have
-* to follow successful matched input signs, rules with REGULEXPRESSION(.|\n) and
+* to follow successful matched input signs, rules with REGULEXPRESSION([^]) and
 * yypushback(1); can be used. These rules only match, if additional input follows
 * REGULEXPRESSION.
 * 
@@ -106,7 +106,7 @@ hexadecimalDigit = [0-9]|[A-F]|[a-f]
 */
 
 <YYINITIAL> {
-	("0x"|"0X")(.|\n)				{
+	("0x"|"0X")([^])				{
 										yypushback(1);
 										lexem.append(yytext());
 										radix = new NumeralSystemHexadecimal();
@@ -125,7 +125,7 @@ hexadecimalDigit = [0-9]|[A-F]|[a-f]
 										wholeNumberPart = "";
 										yybegin(OPTIONAL_EXPONENT_DECIMAL);
 									}
-	{digit}+(.|\n)					{
+	{digit}+([^])					{
 										yypushback(1);
 										lexem.append(yytext());
 										radix = new NumeralSystemDecimal();
@@ -136,20 +136,20 @@ hexadecimalDigit = [0-9]|[A-F]|[a-f]
 }
 
 <HEXADECIMAL_FLOATING_NUMBER> {
-	{hexadecimalDigit}+\.(.|\n)		{
+	{hexadecimalDigit}+\.([^])		{
 										yypushback(1);
 										lexem.append(yytext());
 										wholeNumberPart = yytext().substring(0, yytext().length() - 1);
 										yybegin(OPTIONAL_FRACTIONAL_PART_HEXADECIMAL);
 									}
-	\.{hexadecimalDigit}+(.|\n)		{
+	\.{hexadecimalDigit}+([^])		{
 										yypushback(1);
 										lexem.append(yytext());
 										wholeNumberPart = "";
 										fractionalPart = yytext().substring(1);
 										yybegin(EXPONENT_BINARY);
 									}
-	{hexadecimalDigit}+(.|\n)		{
+	{hexadecimalDigit}+([^])		{
 										yypushback(1);
 										lexem.append(yytext());
 										wholeNumberPart = yytext();
@@ -159,13 +159,13 @@ hexadecimalDigit = [0-9]|[A-F]|[a-f]
 }
 
 <OPTIONAL_FRACTIONAL_PART_HEXADECIMAL> {
-	{hexadecimalDigit}+(.|\n)		{
+	{hexadecimalDigit}+([^])		{
 										yypushback(1);
 										lexem.append(yytext());
 										fractionalPart = yytext();
 										yybegin(EXPONENT_BINARY);
 									}
-	.|\n							{
+	[^]							{
 										fractionalPart = "";
 										yypushback(1);
 										yybegin(EXPONENT_BINARY);
@@ -211,7 +211,7 @@ hexadecimalDigit = [0-9]|[A-F]|[a-f]
 										fractionalPart = yytext();
 										yybegin(OPTIONAL_EXPONENT_DECIMAL);
 									}
-	.|\n							{
+	[^]							{
 										yypushback(1);
 										fractionalPart = "";
 										yybegin(OPTIONAL_EXPONENT_DECIMAL);
@@ -249,7 +249,7 @@ hexadecimalDigit = [0-9]|[A-F]|[a-f]
 										exponent = yytext().substring(1);
 										yybegin(OPTIONAL_SUFFIX);
 									}
-	.|\n							{
+	[^]							{
 										yypushback(1);
 										yybegin(OPTIONAL_SUFFIX);
 									}
@@ -299,14 +299,14 @@ hexadecimalDigit = [0-9]|[A-F]|[a-f]
 										type = new PrimitiveType(new List(), PrimitiveTypes._long_double);
 										yybegin(DONE);
 									}
-	.|\n							{
+	[^]							{
 										yypushback(1);
 										yybegin(DONE);
 									}
 }
 
 <DONE> {
-	.|\n							{
+	[^]							{
 										throw new CUnknownTokenException(embedded_Line,
 											embedded_Column,
 											lexem.toString(),
@@ -314,7 +314,7 @@ hexadecimalDigit = [0-9]|[A-F]|[a-f]
 									}
 }
 
-.|\n						{
+[^]						{
 								throw new CUnknownTokenException(embedded_Line,
 									embedded_Column,
 									lexem.toString(),

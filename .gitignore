@@ -13,3 +13,5 @@
 **/bin
 # Ignore generated jars:
 jastaddc.jar
+# Ignore unpacked sources of thesis:
+documentation/jastadd-c-thesis/**

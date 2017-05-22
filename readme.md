@@ -14,4 +14,4 @@ This program and the accompanying materials are made available under the terms o
 
 # Comments
 
-For any remaining questions or comments don't hesitate to write me an e-mail (`christoff.buerger@gmail.com`). I appreciate any feedback.
+For any questions or comments don't hesitate to write me an e-mail (`christoff.buerger@gmail.com`). I appreciate any feedback.
